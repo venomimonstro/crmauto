@@ -11,6 +11,7 @@ from identity.models import AuditEvent, Membership
 from identity.scope import TenantAPIView, require_roles
 from .models import Customer, Ownership, Vehicle
 from .serializers import CustomerSerializer, OwnershipSerializer, VehicleSerializer, digits
+from .importer import parse_csv
 
 EDITORS = (Membership.Roles.OWNER, Membership.Roles.MANAGER, Membership.Roles.ADVISER)
 READERS = EDITORS + (Membership.Roles.VIEWER,)
@@ -165,3 +166,41 @@ class Search(TenantAPIView):
             c = Customer.objects.filter(organization_id=self.scope.organization_id).filter(match)[:20]
             result["customers"] = CustomerSerializer(c, many=True).data
         return Response(result)
+
+
+class ImportPreview(TenantAPIView):
+    def post(self, request):
+        require_roles(self.scope, *EDITORS)
+        result = parse_csv(request.data.get("csv"), self.scope.organization)
+        # Preview never changes persisted data.
+        return Response(result)
+
+
+class ImportApply(TenantAPIView):
+    def post(self, request):
+        require_roles(self.scope, *EDITORS)
+
+        def commit():
+            result = parse_csv(request.data.get("csv"), self.scope.organization)
+            if result["errors"]:
+                raise ValidationError({"csv": "Импорт отклонён целиком. Исправьте строки.",
+                                       "rows": result["errors"]})
+            created = 0
+            for row in result["entries"]:
+                if row["action"] != "create":
+                    continue
+                ser = CustomerSerializer(data=row["data"])
+                ser.is_valid(raise_exception=True)
+                ser.save(organization=self.scope.organization,
+                         phone_digits=digits(ser.validated_data.get("phone", "")))
+                created += 1
+            audit_id = self.scope.organization_id
+            AuditEvent.objects.create(
+                organization=self.scope.organization, actor=request.user,
+                event_type="customer.csv_imported", subject_id=audit_id,
+                details={"created": created, "skipped": result["skip_count"]},
+            )
+            return {"created": created, "skipped": result["skip_count"]}, status.HTTP_201_CREATED
+
+        body, code = execute_command(request, self.scope, "customer.csv_import", commit)
+        return Response(body, status=code)

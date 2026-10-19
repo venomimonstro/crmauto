@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate, login, logout
+from django.conf import settings
 from django.db import transaction
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
@@ -28,6 +29,12 @@ class RegisterView(APIView):
     throttle_scope = "auth"
 
     def post(self, request):
+        if not getattr(settings, "ALLOW_PUBLIC_UNVERIFIED_REGISTRATION", False):
+            return Response(
+                {"code": "registration_disabled",
+                 "message_ru": "Публичная регистрация временно закрыта до подтверждения почты."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         data = RegisterSerializer(data=request.data)
         data.is_valid(raise_exception=True)
         user = User.objects.create_user(**data.validated_data)

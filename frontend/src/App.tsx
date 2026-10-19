@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
-  Activity, ArrowLeft, BarChart3, CalendarDays, CarFront, CheckCircle2, ChevronDown,
+  Activity, BarChart3, CalendarDays, CarFront, CheckCircle2, ChevronDown,
   CircleHelp, ClipboardList, CreditCard, Gauge, LayoutDashboard, LogOut,
   Menu, Package, Plus, Search, Settings, ShieldCheck, ShoppingCart, Users, Wrench, X,
 } from "lucide-react";
@@ -193,8 +193,13 @@ export default function App(){
     if(!activeOrg)return;
     setDataLoading(true);setError("");
     try{
-      const [c,v]=await Promise.all([api<Customer[]>("customers",{organization:activeOrg.id}),
-        api<Vehicle[]>("vehicles",{organization:activeOrg.id})]);
+      const role=activeOrg.role;
+      const canCustomers=["owner","manager","adviser","viewer"].includes(role);
+      const canVehicles=canCustomers||["mechanic","stock"].includes(role);
+      const [c,v]=await Promise.all([
+        canCustomers ? api<Customer[]>("customers",{organization:activeOrg.id}) : Promise.resolve([] as Customer[]),
+        canVehicles ? api<Vehicle[]>("vehicles",{organization:activeOrg.id}) : Promise.resolve([] as Vehicle[]),
+      ]);
       setCustomers(c);setVehicles(v);
     }catch(err){setError(errorText(err));}
     finally{setDataLoading(false);}
@@ -217,7 +222,7 @@ export default function App(){
       {organizations.length>1&&<label className="org-select-label">Организация<select value={activeOrg.id} onChange={e=>setOrganizationId(e.target.value)}>
         {organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}
       <div className="menu-heading">РАБОЧЕЕ ПРОСТРАНСТВО</div>
-      <nav aria-label="Разделы CRM">{navigation.map(item=>{
+      <nav aria-label="Разделы CRM">{navigation.filter(item=>item.key!=="customers"||["owner","manager","adviser","viewer"].includes(activeOrg.role)).filter(item=>item.key!=="vehicles"||activeOrg.role!=="cashier").map(item=>{
         const Icon=item.icon;return <button key={item.key} aria-current={area===item.key?"page":undefined}
           className={"nav-link "+(area===item.key?"active":"")} onClick={()=>navigate(item.key)}>
           <Icon size={18}/><span>{item.title}</span>{!item.ready&&<span className="lock-mark" title="В разработке">·</span>}</button>;
@@ -228,7 +233,7 @@ export default function App(){
     <div className="main-column">
       <header className="topbar"><div className="topbar-left"><button className="icon-button mobile-toggle" aria-label="Открыть меню" onClick={()=>setMenuOpen(true)}><Menu/></button>
         <span className="breadcrumbs">CRM <span>/</span> {selected?.title}</span></div>
-        <div className="topbar-right"><span className="health-badge"><CheckCircle2 size={15}/> Локальная разработка</span>
+        <div className="topbar-right"><span className="health-badge"><CheckCircle2 size={15}/> Тестовая сборка</span>
           <span className="user-pill">{session.email.slice(0,1).toUpperCase()}</span></div></header>
       <main className="content" id="main">
         {error&&<Notice>{error}</Notice>}
