@@ -90,3 +90,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 
 # Strict by default. Enable only on isolated development instances.
 ALLOW_PUBLIC_UNVERIFIED_REGISTRATION = DEBUG and os.getenv("ENABLE_DEV_REGISTRATION", "0") == "1"
+
+# Safe rollout: set BILLING_ENFORCE_WRITES=1 only after subscriptions have
+# been provisioned. Production preflight MUST fail while it is disabled.
+BILLING_ENFORCE_WRITES = os.getenv("BILLING_ENFORCE_WRITES", "0") == "1"

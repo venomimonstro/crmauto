@@ -20,7 +20,8 @@ class Command(BaseCommand):
         if settings.ALLOW_PUBLIC_UNVERIFIED_REGISTRATION:
             failures.append("Unverified registration must remain disabled")
         # S12 is still incomplete: do not allow sign-off by merely configuring plans.
-        failures.append("S12 subscription write enforcement is not implemented")
+        if not settings.BILLING_ENFORCE_WRITES:
+            failures.append("BILLING_ENFORCE_WRITES=1 is required for commercial release")
         failures.append("Verified PSP/fiscal integration and restore drill not completed")
         try:
             with connection.cursor() as cursor:

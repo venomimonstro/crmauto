@@ -66,3 +66,6 @@ class TenantAPIView(APIView):
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
         self.scope = resolve_scope(request, require_branch=self.require_branch)
+        # Enforced centrally: all tenant business POST/PATCH/PUT/DELETE.
+        from billing.access import enforce_write_access
+        enforce_write_access(request, self.scope.organization_id)
