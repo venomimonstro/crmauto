@@ -1,6 +1,7 @@
 import {useEffect,useState} from "react";
 import {api} from "./api";
 import LegalProfile from "./LegalProfile";
+import ServicePolicies from "./ServicePolicies";
 type Plan={code:string;name:string;price_minor:number;max_branches:number;max_staff:number};
 type Status={state:string;access:string;plan_code?:string;paid_through?:string|null;
  trial_ends_at?:string|null;limits?:{branches:number;staff:number};message?:string};
@@ -42,5 +43,6 @@ export default function SubscriptionPage({organization,role}:{organization:strin
      Онлайн-оплата и автоматическое продление ещё не подключены. Не отправляйте деньги по реквизитам, полученным вне проверенного платёжного сервиса.
    </div>
  <LegalProfile organization={organization}/>
+ <ServicePolicies organization={organization}/>
  </>;
 }
