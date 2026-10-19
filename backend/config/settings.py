@@ -95,3 +95,21 @@ ALLOW_PUBLIC_UNVERIFIED_REGISTRATION = DEBUG and os.getenv("ENABLE_DEV_REGISTRAT
 # valid subscriptions BEFORE rollout; staging/dev may opt out while provisioning.
 # Production preflight MUST fail if an operator overrides this to zero.
 BILLING_ENFORCE_WRITES = os.getenv("BILLING_ENFORCE_WRITES", "0" if DEBUG else "1") == "1"
+
+# Email-based signup and recovery are opt-in until delivery can be proven.
+ENABLE_EMAIL_ONBOARDING = os.getenv("ENABLE_EMAIL_ONBOARDING", "0") == "1"
+PUBLIC_WEB_ORIGIN = os.getenv("PUBLIC_WEB_ORIGIN", "").strip().rstrip("/")
+EMAIL_HOST = os.getenv("SMTP_HOST", "")
+EMAIL_PORT = int(os.getenv("SMTP_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("SMTP_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("SMTP_STARTTLS", "1") == "1"
+EMAIL_USE_SSL = os.getenv("SMTP_SSL", "0") == "1"
+EMAIL_TIMEOUT = 10
+DEFAULT_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", "")
+PASSWORD_RESET_TIMEOUT = 24 * 60 * 60
+if ENABLE_EMAIL_ONBOARDING:
+    if not PUBLIC_WEB_ORIGIN or (not DEBUG and not PUBLIC_WEB_ORIGIN.startswith("https://")):
+        raise ImproperlyConfigured("PUBLIC_WEB_ORIGIN must be an HTTPS origin in production.")
+    if not EMAIL_HOST or not DEFAULT_FROM_EMAIL or EMAIL_USE_TLS == EMAIL_USE_SSL:
+        raise ImproperlyConfigured("Configure SMTP_HOST, SMTP_FROM_EMAIL, and exactly one of TLS/SSL.")
