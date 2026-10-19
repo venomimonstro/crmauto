@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   Activity, BarChart3, CalendarDays, CarFront, CheckCircle2, ChevronDown,
   CircleHelp, ClipboardList, CreditCard, Gauge, LayoutDashboard, LogOut,
@@ -91,17 +91,27 @@ function Dashboard({ customers, vehicles, loading, navigate }: {
         <button onClick={()=>navigate("vehicles")}><CarFront size={20}/> Работа с автомобилями</button></div>
     </section></>;
 }
+function retryKey(ref: { current: { signature: string; key: string } | null }, data: unknown): string {
+  const signature = JSON.stringify(data);
+  if (!ref.current || ref.current.signature !== signature) {
+    ref.current = { signature, key: crypto.randomUUID() };
+  }
+  return ref.current.key;
+}
 function Customers({ organization, items, refresh, canEdit }: { organization:string; items:Customer[]; refresh:()=>Promise<void>; canEdit:boolean }) {
   const [adding,setAdding]=useState(false); const [query,setQuery]=useState("");
   const [name,setName]=useState(""); const [kind,setKind]=useState<"person"|"company">("person");
   const [phone,setPhone]=useState(""); const [email,setEmail]=useState(""); const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
+  const pending=useRef<{signature:string;key:string}|null>(null);
   const filtered=items.filter(x=>[x.name,x.phone,x.email].some(v=>v.toLowerCase().includes(query.toLowerCase())));
   async function create(e:FormEvent) {
     e.preventDefault(); setBusy(true); setError("");
     try {
+      const data={name,kind,phone,email};
       await api("customers", { method:"POST", organization,
-        idempotencyKey:crypto.randomUUID(), data:{name, kind, phone, email} });
+        idempotencyKey:retryKey(pending,data), data });
+      pending.current=null;
       setAdding(false);setName("");setPhone("");setEmail("");await refresh();
     } catch(err){setError(errorText(err));}finally{setBusy(false);}
   }
@@ -132,12 +142,14 @@ function Vehicles({ organization, vehicles, customers, refresh, canEdit }: {
   const [make,setMake]=useState("");const [model,setModel]=useState("");
   const [vin,setVin]=useState("");const [plate,setPlate]=useState("");
   const [owner,setOwner]=useState("");const [error,setError]=useState("");const [busy,setBusy]=useState(false);
+  const pending=useRef<{signature:string;key:string}|null>(null);
   const filtered=vehicles.filter(v=>[v.make,v.model,v.plate,v.vin].some(value=>value.toLowerCase().includes(query.toLowerCase())));
   async function create(e:FormEvent){
     e.preventDefault();setError("");setBusy(true);
     try {
-      await api("vehicles",{method:"POST",organization,idempotencyKey:crypto.randomUUID(),
-        data:{make,model,vin,plate,...(owner?{owner_id:owner}:{})}});
+      const data={make,model,vin,plate,...(owner?{owner_id:owner}:{})};
+      await api("vehicles",{method:"POST",organization,idempotencyKey:retryKey(pending,data),data});
+      pending.current=null;
       setAdding(false);setMake("");setModel("");setVin("");setPlate("");setOwner("");await refresh();
     }catch(err){setError(errorText(err));}finally{setBusy(false);}
   }
