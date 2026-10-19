@@ -8,7 +8,7 @@ from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from core.commands import execute_command, BusinessConflict
-from identity.models import Membership,ServicePolicy
+from identity.models import Membership,ServicePolicy,ServicePolicy
 from identity.scope import TenantAPIView, require_roles
 from scheduling.views import valid_branch
 from .models import WorkOrder, Estimate, OrderDocument
@@ -36,6 +36,9 @@ def compose(order,kind):
     except ObjectDoesNotExist:
         profile=None
     policy=ServicePolicy.objects.filter(organization=order.organization,is_current=True).first()
+    policy=ServicePolicy.objects.filter(organization=order.organization,is_current=True).first()
+    if kind=='warranty' and not policy:
+        raise BusinessConflict('Опубликуйте условия гарантии перед формированием памятки.')
     details=[
       cell("Автосервис",order.organization.name),cell("Филиал",order.branch.name),
       cell("Исполнитель",profile.legal_name if profile else "Реквизиты не заполнены"),
