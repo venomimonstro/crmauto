@@ -55,3 +55,22 @@ class PrintableDocumentContracts(TestCase):
         self.headers={"HTTP_X_ORGANIZATION_ID":str(foreign.pk)}
         response=self.client.get(f"/api/v1/workorders/{self.order.pk}/documents",**self.headers)
         self.assertEqual(response.status_code,404,response.content)
+
+    def test_draft_print_works_without_legal_profile(self):
+        response=self.create_doc("intake")
+        self.assertEqual(response.status_code,201,response.content)
+        detail=self.client.get(
+            f"/api/v1/workorders/{self.order.pk}/documents/{response.json()['id']}",
+            **self.headers)
+        self.assertEqual(detail.status_code,200,detail.content)
+        self.assertIn("Реквизиты не заполнены",detail.json()["html"])
+
+    def test_modified_snapshot_is_not_returned(self):
+        result=self.create_doc("work_order")
+        self.assertEqual(result.status_code,201,result.content)
+        doc=OrderDocument.objects.get(pk=result.json()["id"])
+        doc.html_snapshot += "modified"
+        doc.save(update_fields=["html_snapshot"])
+        response=self.client.get(
+            f"/api/v1/workorders/{self.order.pk}/documents/{doc.pk}",**self.headers)
+        self.assertEqual(response.status_code,409,response.content)
