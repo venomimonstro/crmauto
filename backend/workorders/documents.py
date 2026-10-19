@@ -8,7 +8,7 @@ from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from core.commands import execute_command, BusinessConflict
-from identity.models import Membership
+from identity.models import Membership,ServicePolicy
 from identity.scope import TenantAPIView, require_roles
 from scheduling.views import valid_branch
 from .models import WorkOrder, Estimate, OrderDocument
@@ -35,6 +35,7 @@ def compose(order,kind):
         profile=order.organization.legal_profile
     except ObjectDoesNotExist:
         profile=None
+    policy=ServicePolicy.objects.filter(organization=order.organization,is_current=True).first()
     details=[
       cell("Автосервис",order.organization.name),cell("Филиал",order.branch.name),
       cell("Исполнитель",profile.legal_name if profile else "Реквизиты не заполнены"),
@@ -57,7 +58,13 @@ def compose(order,kind):
         details.append(cell("Сумма по смете",f"{estimate.total_minor / 100:.2f} ₽"))
         details.append(cell("Фиксация согласования",estimate.approval_reference or "Не подтверждено клиентом"))
     if kind=="warranty":
-        details.append(cell("Условия гарантии","Заполняются по утверждённым правилам исполнителя; автоматический срок не установлен."))
+        if not policy:
+            raise BusinessConflict("Сначала опубликуйте условия гарантии в настройках организации.")
+        details.append(cell("Редакция условий",policy.version))
+        details.append(cell("Условия гарантии",policy.warranty_terms))
+    if kind=="work_order" and policy:
+        details.append(cell("Редакция правил обслуживания",policy.version))
+        details.append(cell("Условия обслуживания",policy.service_terms))
     if kind=="handover":
         details.append(cell("Выдача автомобиля","Не подтверждена. Документ не удостоверяет фактическую передачу."))
     title=LABELS[kind]

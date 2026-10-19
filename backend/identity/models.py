@@ -156,3 +156,18 @@ class OrganizationLegalProfile(models.Model):
     correspondent_account=models.CharField(max_length=20,blank=True)
     tax_label=models.CharField(max_length=100,blank=True)
     version=models.PositiveIntegerField(default=1)
+
+class ServicePolicy(models.Model):
+    """Current policy pointer plus immutable historic revisions."""
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    organization=models.ForeignKey(Organization,on_delete=models.PROTECT,related_name="service_policies")
+    version=models.PositiveIntegerField()
+    service_terms=models.TextField()
+    warranty_terms=models.TextField()
+    is_current=models.BooleanField(default=True)
+    created_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    created_at=models.DateTimeField(default=timezone.now)
+    class Meta:
+        constraints=[
+          models.UniqueConstraint(fields=["organization","version"],name="service_policy_version_unique"),
+          models.UniqueConstraint(fields=["organization"],condition=Q(is_current=True),name="service_policy_one_current")]
