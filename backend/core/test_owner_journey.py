@@ -117,6 +117,13 @@ class WorkshopOwnerJourney(TestCase):
             "source_id":full["movement_id"],"amount_minor":4000,
             "reference":"Частичный возврат"}))
         self.assertEqual(refunded["invoice"]["debt_minor"],4000)
+        losses=self.client.get("/api/v1/reports/losses?branch_id="+str(self.branch.id),
+                               **self.headers)
+        self.assertEqual(losses.status_code,200,losses.content)
+        matching=[x for x in losses.json()["items"]
+                  if x["code"]=="unpaid_invoice" and x["object_id"]==invoice["id"]]
+        self.assertEqual(len(matching),1)
+        self.assertEqual(matching[0]["amount_minor"],4000)
         repeat=self.assert_created(self.post("payments",{
             "invoice_id":invoice["id"],"cashbox_id":box["id"],"amount_minor":4000,
             "method":"cash","reference":"Повторная оплата"}))
