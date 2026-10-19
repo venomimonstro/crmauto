@@ -91,7 +91,7 @@ function Dashboard({ customers, vehicles, loading, navigate }: {
         <button onClick={()=>navigate("vehicles")}><CarFront size={20}/> Работа с автомобилями</button></div>
     </section></>;
 }
-function Customers({ organization, items, refresh }: { organization:string; items:Customer[]; refresh:()=>Promise<void> }) {
+function Customers({ organization, items, refresh, canEdit }: { organization:string; items:Customer[]; refresh:()=>Promise<void>; canEdit:boolean }) {
   const [adding,setAdding]=useState(false); const [query,setQuery]=useState("");
   const [name,setName]=useState(""); const [kind,setKind]=useState<"person"|"company">("person");
   const [phone,setPhone]=useState(""); const [email,setEmail]=useState(""); const [busy,setBusy]=useState(false);
@@ -107,7 +107,7 @@ function Customers({ organization, items, refresh }: { organization:string; item
   }
   return <><div className="page-lead"><div><div className="eyebrow">CRM</div><h1>Клиенты</h1>
     <p className="muted">Единая база клиентов автосервиса и истории обслуживания.</p></div>
-    <button className="primary" onClick={()=>{setAdding(true);setError("");}}><Plus size={17}/> Добавить клиента</button></div>
+    {canEdit&&<button className="primary" onClick={()=>{setAdding(true);setError("");}}><Plus size={17}/> Добавить клиента</button>}</div>
     <section className="card table-card"><div className="table-head"><h2>Список клиентов</h2>
       <label className="search-input"><Search size={17}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск по имени, телефону, почте" aria-label="Поиск клиентов"/></label></div>
       <div className="table-scroll"><table><thead><tr><th>Клиент</th><th>Контакты</th><th>Тип</th></tr></thead>
@@ -125,8 +125,8 @@ function Customers({ organization, items, refresh }: { organization:string; item
     </div></div>}
   </>;
 }
-function Vehicles({ organization, vehicles, customers, refresh }: {
-  organization:string; vehicles:Vehicle[]; customers:Customer[];refresh:()=>Promise<void>
+function Vehicles({ organization, vehicles, customers, refresh, canEdit }: {
+  organization:string; vehicles:Vehicle[]; customers:Customer[];refresh:()=>Promise<void>;canEdit:boolean
 }) {
   const [adding,setAdding]=useState(false);const [query,setQuery]=useState("");
   const [make,setMake]=useState("");const [model,setModel]=useState("");
@@ -143,7 +143,7 @@ function Vehicles({ organization, vehicles, customers, refresh }: {
   }
   return <><div className="page-lead"><div><div className="eyebrow">Автопарк клиентов</div><h1>Автомобили</h1>
       <p className="muted">VIN, госномер и связь с клиентом. История владельцев сохраняется.</p></div>
-      <button className="primary" onClick={()=>{setAdding(true);setError("");}}><Plus size={17}/> Добавить автомобиль</button></div>
+      {canEdit&&<button className="primary" onClick={()=>{setAdding(true);setError("");}}><Plus size={17}/> Добавить автомобиль</button>}</div>
       <section className="card table-card"><div className="table-head"><h2>Автомобили</h2>
         <label className="search-input"><Search size={17}/><input aria-label="Поиск автомобилей" value={query}
         onChange={e=>setQuery(e.target.value)} placeholder="Марка, модель, VIN или номер"/></label></div>
@@ -238,8 +238,8 @@ export default function App(){
       <main className="content" id="main">
         {error&&<Notice>{error}</Notice>}
         {area==="dashboard"?<Dashboard customers={customers} vehicles={vehicles} loading={dataLoading} navigate={navigate}/>:
-         area==="customers"?<Customers organization={activeOrg.id} items={customers} refresh={refreshData}/>:
-         area==="vehicles"?<Vehicles organization={activeOrg.id} vehicles={vehicles} customers={customers} refresh={refreshData}/>:
+         area==="customers"?<Customers organization={activeOrg.id} items={customers} refresh={refreshData} canEdit={["owner","manager","adviser"].includes(activeOrg.role)}/>:
+         area==="vehicles"?<Vehicles organization={activeOrg.id} vehicles={vehicles} customers={customers} refresh={refreshData} canEdit={["owner","manager","adviser"].includes(activeOrg.role)}/>:
          <ComingSoon name={selected?.title??"Раздел"}/>}
       </main>
     </div>
