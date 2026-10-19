@@ -6,4 +6,5 @@ urlpatterns=[
     path("api/v1/",include("scheduling.urls")),
     path("api/v1/",include("workorders.urls")),
     path("api/v1/",include("inventory.urls")),
+    path("api/v1/",include("procurement.urls")),
 ]
