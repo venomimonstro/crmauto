@@ -54,6 +54,10 @@ class TokenOnly(serializers.Serializer):
     token=serializers.CharField(max_length=200)
 
 
+class VerifyToken(TokenOnly):
+    password=serializers.CharField(max_length=128,trim_whitespace=False,write_only=True)
+
+
 def user_from_uid(uid):
     try:
         return User.objects.get(pk=force_str(urlsafe_base64_decode(uid)))
@@ -122,11 +126,13 @@ class EmailVerify(APIView):
     throttle_classes=[ScopedRateThrottle]
     throttle_scope="auth"
     def post(self,request):
-        form=TokenOnly(data=request.data)
+        form=VerifyToken(data=request.data)
         form.is_valid(raise_exception=True)
         user=user_from_uid(form.validated_data["uid"])
-        if not user or user.is_active or not default_token_generator.check_token(user,form.validated_data["token"]):
-            return Response({"message_ru":"Ссылка недействительна или уже использована."},status=400)
+        if (not user or user.is_active or
+            not default_token_generator.check_token(user,form.validated_data["token"]) or
+            not user.check_password(form.validated_data["password"])):
+            return Response({"message_ru":"Данные подтверждения недействительны или ссылка использована."},status=400)
         user.is_active=True
         user.save(update_fields=["is_active"])
         return Response({"verified":True})
