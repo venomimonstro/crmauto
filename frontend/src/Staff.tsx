@@ -3,6 +3,7 @@ import {api} from "./api";
 
 type Branch={id:string;name:string};
 type Invite={id:string;email:string;role:string;branch_id:string|null;expires_at:string};
+type Member={id:string;email:string;role:string;active:boolean};
 const ROLES=[
   {value:"manager",label:"Управляющий"},
   {value:"adviser",label:"Мастер-приёмщик"},
@@ -19,6 +20,7 @@ export function Staff({organization,role}:{organization:string;role:string}){
   const [branches,setBranches]=useState<Branch[]>([]);
   const [branchId,setBranchId]=useState("");
   const [invitations,setInvitations]=useState<Invite[]>([]);
+  const [members,setMembers]=useState<Member[]>([]);
   const [busy,setBusy]=useState(false);
   const [notice,setNotice]=useState("");
   const [error,setError]=useState("");
@@ -26,13 +28,14 @@ export function Staff({organization,role}:{organization:string;role:string}){
   const canInvite=["owner","manager"].includes(role);
   useEffect(()=>{
     let active=true;
-    setBranches([]);setInvitations([]);setError("");
+    setBranches([]);setInvitations([]);setMembers([]);setError("");
     Promise.all([
       api<Branch[]>("branches",{organization}),
       canInvite?api<Invite[]>("staff/invitations",{organization}):Promise.resolve([]),
-    ]).then(([b,inv])=>{
+      canInvite?api<Member[]>("staff/members",{organization}):Promise.resolve([]),
+    ]).then(([b,inv,staff])=>{
       if(!active)return;
-      setBranches(b);setBranchId(b[0]?.id??"");setInvitations(inv);
+      setBranches(b);setBranchId(b[0]?.id??"");setInvitations(inv);setMembers(staff);
     }).catch(e=>{if(active)setError(message(e));});
     return()=>{active=false;};
   },[organization,canInvite]);
@@ -56,6 +59,18 @@ export function Staff({organization,role}:{organization:string;role:string}){
       setInvitations(rows);
     }catch(e){setError(message(e));}
     finally{setBusy(false);}
+  }
+  async function changeAccess(path:string){
+    setBusy(true);setError("");setNotice("");
+    try{
+      await api(path,{method:"POST",organization,idempotencyKey:crypto.randomUUID(),data:{}});
+      const [inv,staff]=await Promise.all([
+        api<Invite[]>("staff/invitations",{organization}),
+        api<Member[]>("staff/members",{organization}),
+      ]);
+      setInvitations(inv);setMembers(staff);
+      setNotice("Доступ обновлён.");
+    }catch(e){setError(message(e));}finally{setBusy(false);}
   }
   return <><div className="page-lead"><div><div className="eyebrow">Доступ сотрудников</div>
     <h1>Команда автосервиса</h1>
@@ -91,16 +106,31 @@ export function Staff({organization,role}:{organization:string;role:string}){
     <section className="card action-card" style={{marginTop:16}}>
       <h2>Ожидают принятия</h2>
       <div className="table-scroll"><table><thead><tr>
-        <th>Почта</th><th>Роль</th><th>Филиал</th><th>Срок</th>
+        <th>Почта</th><th>Роль</th><th>Филиал</th><th>Срок</th><th>Действие</th>
       </tr></thead><tbody>
         {invitations.map(x=><tr key={x.id}><td>{x.email}</td>
           <td>{ROLES.find(r=>r.value===x.role)?.label??x.role}</td>
           <td>{branches.find(b=>b.id===x.branch_id)?.name??"Все филиалы"}</td>
           <td>{new Date(x.expires_at).toLocaleDateString("ru-RU")}</td>
+          <td><button className="secondary" disabled={busy} onClick={()=>void changeAccess("staff/invitations/"+x.id+"/revoke")}>Отозвать</button></td>
         </tr>)}
       </tbody></table>{!invitations.length&&<p className="table-empty">Пока нет приглашений.</p>}
       </div>
       <p className="muted">Действующее приглашение учитывается в лимите сотрудников тарифного плана.</p>
+    </section>
+    <section className="card action-card" style={{marginTop:16}}>
+      <h2>Сотрудники с доступом</h2>
+      <div className="table-scroll"><table><thead><tr>
+        <th>Почта</th><th>Роль</th><th>Доступ</th>
+      </tr></thead><tbody>{members.map(x=><tr key={x.id}>
+        <td>{x.email}</td>
+        <td>{ROLES.find(r=>r.value===x.role)?.label??(x.role==="owner"?"Владелец":x.role)}</td>
+        <td>{x.role!=="owner"&&(x.role!=="manager"||role==="owner")?
+          <button className="secondary" disabled={busy}
+            onClick={()=>{if(window.confirm("Отключить сотрудника от этой организации?"))
+              void changeAccess("staff/members/"+x.id+"/deactivate");}}>Отключить</button>:
+          <span className="muted">Управляется владельцем</span>}</td>
+      </tr>)}</tbody></table></div>
     </section>
   </>}
   </>;
