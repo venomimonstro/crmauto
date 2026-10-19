@@ -1,4 +1,5 @@
 from django.urls import path
+from .tasks import Tasks,TaskAction
 from .additions import AdditionalWorkList,AdditionalWorkDecision
 from .views import Orders,OrderDetail,LineAdd,Actions
 urlpatterns=[
