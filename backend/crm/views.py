@@ -152,6 +152,7 @@ class VehicleTransfer(TenantAPIView):
 
 class Search(TenantAPIView):
     def get(self, request):
+        require_roles(self.scope, *VEHICLE_READERS)
         q = request.query_params.get("q", "").strip()[:100]
         if len(q) < 2:
             return Response({"customers": [], "vehicles": []})
