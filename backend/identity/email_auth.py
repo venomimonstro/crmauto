@@ -101,18 +101,25 @@ class EmailSignup(APIView):
         form.is_valid(raise_exception=True)
         email=form.validated_data["email"]
         generic={"message_ru":"Если регистрация допустима, письмо для подтверждения будет отправлено."}
-        if User.objects.filter(email__iexact=email).exists():
+        if User.objects.filter(email__iexact=email,is_active=True).exists():
             return Response(generic,status=202)
         key=rate_key("signup",email)
         if not cache.add(key,"1",timeout=300):
             return Response(generic,status=202)
         try:
             with transaction.atomic():
-                if User.objects.filter(email__iexact=email).exists():
+                user=User.objects.select_for_update().filter(email__iexact=email).first()
+                if user is not None and user.is_active:
                     return Response(generic,status=202)
-                user=User.objects.create_user(email=email,password=form.validated_data["password"],is_active=False)
+                if user is not None:
+                    # Recover an abandoned unverified signup without exposing an
+                    # attacker-chosen password to the legitimate mailbox owner.
+                    user.set_password(form.validated_data["password"])
+                    user.save(update_fields=["password"])
+                else:
+                    user=User.objects.create_user(email=email,password=form.validated_data["password"],is_active=False)
                 mail_link(user,"verify","Подтвердите адрес электронной почты",
-                          "Для активации учётной записи перейдите по ссылке:")
+                          "Для активации учётной записи введите пароль регистрации и откройте ссылку:")
         except Exception:
             cache.delete(key)
             return Response({"code":"delivery_unavailable",
