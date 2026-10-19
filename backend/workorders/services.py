@@ -80,7 +80,7 @@ def transition(order,actor,action,reference="",reason=""):
             change(order,actor,"draft",reason or "Клиент отказался от сметы.")
         return
     if action=="revise":
-        if order.status not in ("approved","awaiting","in_progress"):
+        if order.status not in ("approved","awaiting","draft","in_progress"):
             raise BusinessConflict("Пересмотр сметы сейчас невозможен.")
         if order.status=="in_progress":
             raise BusinessConflict("Дополнительные работы после начала ремонта требуют отдельного процесса дополнений.")
@@ -89,7 +89,8 @@ def transition(order,actor,action,reference="",reason=""):
             if pending:
                 pending.state="superseded";pending.save(update_fields=["state"])
         create_revision(order,actor)
-        change(order,actor,"draft","Новая редакция сметы.")
+        if order.status != "draft":
+            change(order,actor,"draft","Новая редакция сметы.")
         return
     target={"start":"in_progress","qa":"qa","rework":"in_progress",
             "ready":"ready","deliver":"delivered","cancel":"cancelled"}.get(action)
