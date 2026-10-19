@@ -81,3 +81,18 @@ class OrderTransition(models.Model):
     current = models.CharField(max_length=16)
     occurred_at = models.DateTimeField(default=timezone.now)
     reason = models.CharField(max_length=500,blank=True)
+
+class AdditionalWork(models.Model):
+    """Supplemental scope stays unbillable until a separate signed approval flow exists."""
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    order=models.ForeignKey(WorkOrder,on_delete=models.PROTECT,related_name="additional_works")
+    requested_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    title=models.CharField(max_length=200)
+    description=models.TextField()
+    amount_minor=models.PositiveBigIntegerField()
+    status=models.CharField(max_length=16,choices=[
+        ("proposed","Предложена"),("declined","Отклонена"),
+        ("approved","Подтверждена")],default="proposed")
+    approval_reference=models.CharField(max_length=250,blank=True)
+    created_at=models.DateTimeField(default=timezone.now)
+    decided_at=models.DateTimeField(null=True,blank=True)
