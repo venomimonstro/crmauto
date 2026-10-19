@@ -76,6 +76,9 @@ def json_document(doc,include_html=False):
     result={"id":str(doc.pk),"type":doc.doc_type,"title":LABELS[doc.doc_type],
       "revision":doc.revision,"created_at":doc.created_at.isoformat(),"sha256":doc.sha256,
       "state":"unsigned_draft"}
+    actual_hash=hashlib.sha256(doc.html_snapshot.encode("utf-8")).hexdigest()
+    if actual_hash!=doc.sha256:
+        raise BusinessConflict("Контрольная сумма документа не совпадает. Остановите выдачу и проверьте целостность данных.")
     if include_html:result["html"]=doc.html_snapshot
     return result
 
