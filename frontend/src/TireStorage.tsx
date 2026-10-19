@@ -87,13 +87,13 @@ export default function TireStorage({organization,role,customers,vehicles}:{
   <h2>Принять комплект на хранение</h2>
   <form onSubmit={receive}>
    <div className="form-grid">
-     <label>Клиент<select value={customer} onChange={e=>setCustomer(e.target.value)} required>
+     <label>Клиент<select value={customer} onChange={e=>{setCustomer(e.target.value);setVehicle("");}} required>
        <option value="">Выберите клиента</option>
        {customers.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}
      </select></label>
      <label>Автомобиль<select value={vehicle} onChange={e=>setVehicle(e.target.value)}>
        <option value="">Не указывать</option>
-       {vehicles.map(v=><option value={v.id} key={v.id}>{v.make} {v.model} · {v.plate}</option>)}
+       {vehicles.filter(v=>v.current_owner===customer).map(v=><option value={v.id} key={v.id}>{v.make} {v.model} · {v.plate}</option>)}
      </select></label>
      <label>Уникальный код комплекта<input required maxLength={80} value={code}
        onChange={e=>setCode(e.target.value)} placeholder="Ш-2026-001"/></label>
