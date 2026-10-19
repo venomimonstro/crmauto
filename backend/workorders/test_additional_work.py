@@ -48,3 +48,17 @@ class AdditionalWorkContracts(TestCase):
         result=self.post(f"workorders/{self.order.pk}/additional-works",{
             "title":"More","description":"Late","amount_minor":100})
         self.assertEqual(result.status_code,409,result.content)
+
+    def test_unresolved_additional_work_blocks_quality_check(self):
+        proposal=self.post(f"workorders/{self.order.pk}/additional-works",{
+            "title":"Повреждение тормозного шланга",
+            "description":"Требуется согласование клиента",
+            "amount_minor":45000})
+        self.assertEqual(proposal.status_code,201,proposal.content)
+        blocked=self.post(f"workorders/{self.order.pk}/actions/qa",{})
+        self.assertEqual(blocked.status_code,409,blocked.content)
+        self.assertEqual(WorkOrder.objects.get(pk=self.order.pk).status,"in_progress")
+        declined=self.post(f"workorders/{self.order.pk}/additional-works/{proposal.json()['id']}/decline",{})
+        self.assertEqual(declined.status_code,200,declined.content)
+        allowed=self.post(f"workorders/{self.order.pk}/actions/qa",{})
+        self.assertEqual(allowed.status_code,200,allowed.content)
