@@ -95,3 +95,35 @@ class StaffInvitationJourney(TestCase):
           {"email":"third@test.invalid","role":"manager"},
           HTTP_IDEMPOTENCY_KEY=str(uuid4()),format="json",**self.headers)
         self.assertEqual(response.status_code,403,response.content)
+
+    def test_invitation_can_be_revoked_before_acceptance(self):
+        response=self.send_invite()
+        self.assertEqual(response.status_code,201,response.content)
+        token=self.token_from_mail()
+        invitation_id=response.json()["id"]
+        revoked=self.client.post("/api/v1/staff/invitations/"+invitation_id+"/revoke",
+            {},format="json",HTTP_X_ORGANIZATION_ID=str(self.org.id),
+            HTTP_IDEMPOTENCY_KEY=str(uuid4()))
+        self.assertEqual(revoked.status_code,200,revoked.content)
+        self.client.force_authenticate(self.new_staff)
+        denied=self.client.post("/api/v1/staff/invitations/accept",
+            {"token":token},format="json")
+        self.assertEqual(denied.status_code,409,denied.content)
+        self.assertFalse(Membership.objects.filter(organization=self.org,user=self.new_staff).exists())
+
+    def test_deactivated_member_loses_org_api_access_without_deleting_user(self):
+        self.assertEqual(self.send_invite().status_code,201)
+        token=self.token_from_mail()
+        self.client.force_authenticate(self.new_staff)
+        self.assertEqual(self.client.post("/api/v1/staff/invitations/accept",
+            {"token":token},format="json").status_code,201)
+        self.client.force_authenticate(self.owner)
+        member=Membership.objects.get(organization=self.org,user=self.new_staff)
+        deactivated=self.client.post("/api/v1/staff/members/"+str(member.pk)+"/deactivate",
+            {},format="json",HTTP_X_ORGANIZATION_ID=str(self.org.id),
+            HTTP_IDEMPOTENCY_KEY=str(uuid4()))
+        self.assertEqual(deactivated.status_code,200,deactivated.content)
+        self.client.force_authenticate(self.new_staff)
+        rejected=self.client.get("/api/v1/branches",HTTP_X_ORGANIZATION_ID=str(self.org.id))
+        self.assertEqual(rejected.status_code,404,rejected.content)
+        self.assertTrue(User.objects.get(pk=self.new_staff.pk).is_active)
