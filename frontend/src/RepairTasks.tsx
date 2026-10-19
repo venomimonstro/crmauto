@@ -14,7 +14,7 @@ export default function RepairTasks({organization,orderId,role}:{
  const [title,setTitle]=useState("");
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
  const [notice,setNotice]=useState("");
- const canAssign=["owner","manager"].includes(role);
+ const canAssign=["owner","manager","adviser"].includes(role);
  const canAction=["owner","manager","adviser","mechanic"].includes(role);
  const refresh=useCallback(async()=>{
    const jobs=await api<Task[]>("workorders/"+orderId+"/tasks",{organization});
@@ -26,7 +26,26 @@ export default function RepairTasks({organization,orderId,role}:{
      setMechanicId(old=>mechanics.some(m=>m.id===old)?old:mechanics[0]?.id??"");
    }
  },[organization,orderId,canAssign]);
- useEffect(()=>{void refresh().catch(e=>setError(errorText(e)));},[refresh]);
+ useEffect(()=>{
+   let active=true;
+   setTasks([]);setStaff([]);setMechanicId("");setError("");setNotice("");
+   async function fetchJobs(){
+     try{
+       const jobs=await api<Task[]>("workorders/"+orderId+"/tasks",{organization});
+       if(active)setTasks(jobs);
+       if(canAssign){
+         const rows=await api<Staff[]>("staff/members",{organization});
+         if(active){
+           const mechanics=rows.filter(x=>x.role==="mechanic"&&x.active);
+           setStaff(mechanics);
+           setMechanicId(mechanics[0]?.id??"");
+         }
+       }
+     }catch(e){if(active)setError(errorText(e));}
+   }
+   void fetchJobs();
+   return()=>{active=false;};
+ },[organization,orderId,canAssign]);
  async function call(path:string,data:unknown={}){
    setBusy(true);setError("");setNotice("");
    try{await api(path,{method:"POST",organization,
