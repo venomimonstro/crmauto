@@ -4,7 +4,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 from identity.models import Organization,Branch,Membership,User
-from crm.models import Customer
+from crm.models import Customer,Vehicle,Ownership
 from workforce.models import TireSet,Shift
 
 @override_settings(BILLING_ENFORCE_WRITES=False)
@@ -38,3 +38,18 @@ class WorkforceContracts(TestCase):
         self.assertEqual(self.post("staff-shifts",data).status_code,201)
         self.assertEqual(self.post("staff-shifts",data).status_code,409)
         self.assertEqual(Shift.objects.count(),1)
+
+    def test_cannot_store_customer_tires_against_another_owners_vehicle(self):
+        other=Customer.objects.create(organization=self.org,name="Другой клиент")
+        car=Vehicle.objects.create(organization=self.org,make="VW",model="Polo")
+        Ownership.objects.create(organization=self.org,vehicle=car,customer=other)
+        request={"branch_id":str(self.branch.id),"customer_id":str(self.customer.id),
+                 "vehicle_id":str(car.id),"code":"TYRE-OTHER",
+                 "pieces":4,"description":"Чужой комплект","storage_location":"A-2"}
+        result=self.post("tire-sets",request)
+        self.assertEqual(result.status_code,409,result.content)
+        self.assertEqual(TireSet.objects.count(),0)
+        request["customer_id"]=str(other.id)
+        valid=self.post("tire-sets",request)
+        self.assertEqual(valid.status_code,201,valid.content)
+        self.assertEqual(TireSet.objects.count(),1)
