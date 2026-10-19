@@ -149,8 +149,7 @@ class ReceivePurchase(TenantAPIView):
             receipt=GoodsReceipt.objects.create(organization=self.scope.organization,purchase=order,
                 movement=movement,part=line.part,quantity=qty,unit_cost_minor=line.unit_cost_minor)
             line.received+=qty;line.save(update_fields=["received"])
-            order.status=("received" if not PurchaseLine.objects.filter(purchase=order,received__lt=0).exists()
-                and all(x.received==x.ordered for x in order.lines.all()) else "partial")
+            order.status=("received" if all(x.received==x.ordered for x in order.lines.all()) else "partial")
             order.version+=1;order.save(update_fields=["status","version"])
             audit(self.scope,request.user,"goods_received",receipt,
                   {"purchase_id":str(order.id),"movement_id":str(movement.id)})
