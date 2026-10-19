@@ -34,12 +34,15 @@ class EmailAccountTests(TestCase):
         self.assertEqual(len(mail.outbox),1)
         uid=urlsafe_base64_encode(force_bytes(user.pk))
         token=default_token_generator.make_token(user)
-        confirmation=self.post("auth/email/verify",{"uid":uid,"token":token})
+        self.assertEqual(self.post("auth/email/verify",{
+            "uid":uid,"token":token,"password":"NotTheCorrectPassword399!"}).status_code,400)
+        confirmation=self.post("auth/email/verify",{"uid":uid,"token":token,
+            "password":data["password"]})
         self.assertEqual(confirmation.status_code,200,confirmation.content)
         user.refresh_from_db()
         self.assertTrue(user.is_active)
         self.assertIsNotNone(authenticate(username=data["email"],password=data["password"]))
-        self.assertEqual(self.post("auth/email/verify",{"uid":uid,"token":token}).status_code,400)
+        self.assertEqual(self.post("auth/email/verify",{"uid":uid,"token":token,"password":data["password"]}).status_code,400)
 
     def test_password_recovery_token_cannot_be_reused(self):
         user=User.objects.create_user("recovery@invalid.test","PreviousLongPassword3377!")
