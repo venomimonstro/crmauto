@@ -121,3 +121,17 @@ class AuditEvent(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=["organization", "created_at"])]
+
+
+class StaffInvitation(models.Model):
+    """One-time email invitation; never grant access merely by matching CRM contact data."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="staff_invitations")
+    branch = models.ForeignKey(Branch, on_delete=models.PROTECT, null=True, blank=True)
+    email = models.EmailField()
+    role = models.CharField(max_length=16, choices=Membership.Roles.choices)
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="sent_staff_invitations")
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
