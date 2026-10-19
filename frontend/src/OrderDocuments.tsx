@@ -7,6 +7,7 @@ const kinds=[
   {type:"intake",title:"Акт приёмки"},
   {type:"completion",title:"Акт выполненных работ"},
   {type:"handover",title:"Акт выдачи автомобиля"},
+  {type:"warranty",title:"Гарантийная памятка"},
 ];
 export default function OrderDocuments({organization,orderId,orderStatus,canEdit}:{
  organization:string;orderId:string;orderStatus:string;canEdit:boolean;
@@ -54,7 +55,7 @@ export default function OrderDocuments({organization,orderId,orderStatus,canEdit
    {notice&&<div className="notice info" role="status">{notice}</div>}
    {canEdit&&<div className="quick-actions" style={{marginBottom:16}}>
     {kinds.map(k=><button type="button" className="secondary" key={k.type} disabled={busy||
-      (["completion","handover"].includes(k.type)&&!["qa","ready","delivered"].includes(orderStatus))}
+      (["completion","handover","warranty"].includes(k.type)&&!["qa","ready","delivered"].includes(orderStatus))}
       onClick={()=>void create(k.type)}>+ {k.title}</button>)}
    </div>}
    <div className="table-scroll"><table><thead><tr><th>Документ</th><th>Версия</th><th>Создан</th><th>Действие</th></tr></thead>

@@ -123,7 +123,8 @@ class OrderDocument(models.Model):
     order=models.ForeignKey(WorkOrder,related_name="documents",on_delete=models.PROTECT)
     doc_type=models.CharField(max_length=20,choices=[
         ("work_order","Заказ-наряд"),("intake","Акт приёмки"),
-        ("completion","Акт работ (проект)"),("handover","Акт выдачи (проект)")])
+        ("completion","Акт работ (проект)"),("handover","Акт выдачи (проект)"),
+        ("warranty","Гарантийная памятка (проект)")])
     revision=models.PositiveIntegerField()
     html_snapshot=models.TextField()
     sha256=models.CharField(max_length=64)

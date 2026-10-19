@@ -74,3 +74,8 @@ class PrintableDocumentContracts(TestCase):
         response=self.client.get(
             f"/api/v1/workorders/{self.order.pk}/documents/{doc.pk}",**self.headers)
         self.assertEqual(response.status_code,409,response.content)
+
+    def test_warranty_draft_not_issued_while_repair_is_open(self):
+        response=self.create_doc("warranty")
+        self.assertEqual(response.status_code,409,response.content)
+        self.assertFalse(OrderDocument.objects.filter(doc_type="warranty").exists())

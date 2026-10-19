@@ -16,7 +16,8 @@ from .models import WorkOrder, Estimate, OrderDocument
 READ=(Membership.Roles.OWNER,Membership.Roles.MANAGER,Membership.Roles.ADVISER,Membership.Roles.VIEWER)
 EDIT=(Membership.Roles.OWNER,Membership.Roles.MANAGER,Membership.Roles.ADVISER)
 LABELS={"work_order":"Заказ-наряд","intake":"Акт приёмки автомобиля",
-        "completion":"Акт выполненных работ (проект)","handover":"Акт выдачи автомобиля (проект)"}
+        "completion":"Акт выполненных работ (проект)","handover":"Акт выдачи автомобиля (проект)",
+        "warranty":"Гарантийная памятка (проект)"}
 def safe(value):
     return escape(str(value if value is not None else "—"),quote=True)
 def cell(label,value):
@@ -26,9 +27,9 @@ def compose(order,kind):
     customer=order.customer
     vehicle=order.vehicle
     estimate=Estimate.objects.filter(order=order,state="approved").order_by("-revision").first()
-    if kind in ("completion","handover") and order.status not in ("qa","ready","delivered"):
+    if kind in ("completion","handover","warranty") and order.status not in ("qa","ready","delivered"):
         raise BusinessConflict("Документ завершения возможен только после выполнения работ.")
-    if kind in ("completion","handover") and (not estimate or order.additional_works.filter(status="proposed").exists()):
+    if kind in ("completion","handover","warranty") and (not estimate or order.additional_works.filter(status="proposed").exists()):
         raise BusinessConflict("Для документа завершения нужна согласованная смета и рассмотренные дополнения.")
     try:
         profile=order.organization.legal_profile
@@ -55,6 +56,8 @@ def compose(order,kind):
         details.append(cell("Согласованная редакция сметы",estimate.revision))
         details.append(cell("Сумма по смете",f"{estimate.total_minor / 100:.2f} ₽"))
         details.append(cell("Фиксация согласования",estimate.approval_reference or "Не подтверждено клиентом"))
+    if kind=="warranty":
+        details.append(cell("Условия гарантии","Заполняются по утверждённым правилам исполнителя; автоматический срок не установлен."))
     if kind=="handover":
         details.append(cell("Выдача автомобиля","Не подтверждена. Документ не удостоверяет фактическую передачу."))
     title=LABELS[kind]
