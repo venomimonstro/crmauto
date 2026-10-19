@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, F
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
@@ -12,7 +12,8 @@ class MyPortal(APIView):
     permission_classes=[IsAuthenticated]
     def get(self,request):
         grants=PortalGrant.objects.filter(user=request.user,active=True,
-            organization__is_active=True,customer__archived_at__isnull=True).select_related('organization','customer')
+            organization__is_active=True,customer__archived_at__isnull=True,
+            customer__organization_id=F('organization_id')).select_related('organization','customer')
         results=[]
         for grant in grants[:20]:
             owned_ids=list(Ownership.objects.filter(organization=grant.organization,
@@ -34,6 +35,7 @@ class PortalOrder(APIView):
             customer_id=OuterRef('customer_id'),
             organization__is_active=True,
             customer__archived_at__isnull=True,
+            customer__organization_id=OuterRef('organization_id'),
         )
         order=get_object_or_404(WorkOrder.objects.annotate(
             has_valid_grant=Exists(valid_grant)).filter(has_valid_grant=True),pk=pk)
