@@ -92,3 +92,40 @@ class WorkshopOwnerJourney(TestCase):
             "method":"card","amount_minor":10000,"reference":"Без PSP"})
         self.assertEqual(attempt.status_code,400,attempt.content)
         self.assertFalse(Movement.objects.exists())
+
+    def test_full_payment_partial_refund_and_repayment(self):
+        """Positive: a later repayment is legal, while net paid never exceeds invoice."""
+        from scheduling.models import Appointment, Visit
+        from workorders.models import WorkOrder, Estimate
+        customer=Customer.objects.create(organization=self.org,name="Повторная оплата")
+        car=Vehicle.objects.create(organization=self.org,make="Kia",model="Rio")
+        now=timezone.now()
+        appointment=Appointment.objects.create(organization=self.org,branch=self.branch,
+            customer=customer,vehicle=car,start_at=now,end_at=now+timedelta(hours=1))
+        visit=Visit.objects.create(organization=self.org,branch=self.branch,appointment=appointment,
+            customer=customer,vehicle=car)
+        order=WorkOrder.objects.create(organization=self.org,branch=self.branch,
+            visit=visit,customer=customer,vehicle=car,created_by=self.owner,status="approved")
+        Estimate.objects.create(order=order,revision=1,state="approved",total_minor=10000)
+        invoice=self.assert_created(self.post("invoices",{"order_id":str(order.id)}))
+        box=self.assert_created(self.post("cashboxes",{
+            "branch_id":str(self.branch.id),"name":"Наличные"}))
+        full=self.assert_created(self.post("payments",{
+            "invoice_id":invoice["id"],"cashbox_id":box["id"],"amount_minor":10000,
+            "method":"cash","reference":"Первая оплата"}))
+        refunded=self.assert_created(self.post("refunds",{
+            "source_id":full["movement_id"],"amount_minor":4000,
+            "reference":"Частичный возврат"}))
+        self.assertEqual(refunded["invoice"]["debt_minor"],4000)
+        repeat=self.assert_created(self.post("payments",{
+            "invoice_id":invoice["id"],"cashbox_id":box["id"],"amount_minor":4000,
+            "method":"cash","reference":"Повторная оплата"}))
+        self.assertEqual(repeat["invoice"]["debt_minor"],0)
+        row=Invoice.objects.get(pk=invoice["id"])
+        self.assertEqual(row.paid_minor,14000)
+        self.assertEqual(row.refunded_minor,4000)
+        self.assertEqual(Movement.objects.filter(invoice=row).count(),3)
+        over=self.post("payments",{
+            "invoice_id":invoice["id"],"cashbox_id":box["id"],"amount_minor":1,
+            "method":"cash","reference":"Попытка переплаты"})
+        self.assertEqual(over.status_code,409,over.content)
