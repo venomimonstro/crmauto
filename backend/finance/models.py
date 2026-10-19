@@ -16,7 +16,7 @@ class Invoice(models.Model):
     created_at=models.DateTimeField(default=timezone.now)
     class Meta:
         constraints=[
-          models.CheckConstraint(condition=Q(paid_minor__lte=F('amount_minor')),name='fin_paid_limit'),
+          models.CheckConstraint(condition=Q(paid_minor__lte=F('amount_minor')+F('refunded_minor')),name='fin_paid_limit'),
           models.CheckConstraint(condition=Q(refunded_minor__lte=F('paid_minor')),name='fin_refund_limit')]
 
 class Cashbox(models.Model):
