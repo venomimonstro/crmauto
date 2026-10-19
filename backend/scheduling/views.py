@@ -75,15 +75,19 @@ class AppointmentsView(TenantAPIView):
             ser.is_valid(raise_exception=True)
             d = ser.validated_data
             branch = valid_branch(self.scope, d["branch_id"])
-            get_object_or_404(Customer, pk=d["customer_id"], organization=self.scope.organization, archived_at__isnull=True)
-            get_object_or_404(Vehicle, pk=d["vehicle_id"], organization=self.scope.organization)
+            customer = get_object_or_404(Customer, pk=d["customer_id"], organization=self.scope.organization, archived_at__isnull=True)
+            vehicle = get_object_or_404(Vehicle, pk=d["vehicle_id"], organization=self.scope.organization)
             bay = None
             if d.get("bay_id"):
                 bay = get_object_or_404(ServiceBay, pk=d["bay_id"], branch=branch,
                                        organization=self.scope.organization, active=True)
             # execute_command locks organization row: serializes all booking decisions for tenant.
             slot_available(self.scope.organization, branch, bay, d["start_at"], d["end_at"])
-            appointment = ser.save(organization=self.scope.organization, branch=branch, bay=bay)
+            appointment = Appointment.objects.create(
+                organization=self.scope.organization, branch=branch, customer=customer, vehicle=vehicle,
+                bay=bay, start_at=d["start_at"], end_at=d["end_at"],
+                description=d.get("description", ""),
+            )
             audited(self.scope, request.user, "appointment.created", appointment)
             return AppointmentSerializer(appointment).data, status.HTTP_201_CREATED
         body, code = execute_command(request, self.scope, "appointment.create", create)
