@@ -181,3 +181,57 @@ class AcceptStaffInvitation(APIView):
             event_type="staff.accepted",subject_id=member.pk)
         return Response({"organization_id": str(invite.organization_id),
                          "membership_id": str(member.pk), "role": member.role}, status=201)
+
+
+class RevokeStaffInvitation(TenantAPIView):
+    def post(self, request, pk):
+        require_roles(self.scope, *INVITER_ROLES)
+
+        def revoke():
+            Organization.objects.select_for_update().get(pk=self.scope.organization_id)
+            invite = get_object_or_404(StaffInvitation,
+                pk=pk, organization_id=self.scope.organization_id)
+            if invite.accepted_at or invite.revoked_at:
+                raise BusinessConflict("Приглашение уже закрыто.")
+            invite.revoked_at = timezone.now()
+            invite.save(update_fields=["revoked_at"])
+            AuditEvent.objects.create(organization=self.scope.organization,
+                actor=request.user, event_type="staff.invitation_revoked", subject_id=invite.pk)
+            return {"id":str(invite.id),"revoked":True}, 200
+
+        body, code=execute_command(request,self.scope,"staff.invitation.revoke."+str(pk),revoke)
+        return Response(body,status=code)
+
+
+class StaffMembers(TenantAPIView):
+    def get(self, request):
+        require_roles(self.scope, *INVITER_ROLES)
+        members=Membership.objects.filter(organization_id=self.scope.organization_id,
+            is_active=True).select_related("user").order_by("user__email")[:250]
+        return Response([{"id":str(x.pk),"email":x.user.email,
+                          "role":x.role,"active":x.is_active} for x in members])
+
+
+class DeactivateStaffMember(TenantAPIView):
+    def post(self, request, pk):
+        require_roles(self.scope, *INVITER_ROLES)
+
+        def deactivate():
+            Organization.objects.select_for_update().get(pk=self.scope.organization_id)
+            member=get_object_or_404(Membership.objects.select_related("user"),
+                                     pk=pk,organization_id=self.scope.organization_id,
+                                     is_active=True)
+            if member.user_id==request.user.pk:
+                raise PermissionDenied("Нельзя отключить собственный доступ.")
+            if member.role==Membership.Roles.OWNER:
+                raise PermissionDenied("Владельца организации отключать нельзя.")
+            if member.role==Membership.Roles.MANAGER and self.scope.membership.role!=Membership.Roles.OWNER:
+                raise PermissionDenied("Управляющего может отключать только владелец.")
+            member.is_active=False
+            member.save(update_fields=["is_active"])
+            AuditEvent.objects.create(organization=self.scope.organization,
+                actor=request.user, event_type="staff.deactivated", subject_id=member.pk)
+            return {"membership_id":str(member.pk),"active":False},200
+
+        body,code=execute_command(request,self.scope,"staff.member.deactivate."+str(pk),deactivate)
+        return Response(body,status=code)
