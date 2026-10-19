@@ -2,6 +2,7 @@
 import hashlib
 from html import escape
 from django.shortcuts import get_object_or_404
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.response import Response
@@ -29,7 +30,10 @@ def compose(order,kind):
         raise BusinessConflict("Документ завершения возможен только после выполнения работ.")
     if kind in ("completion","handover") and (not estimate or order.additional_works.filter(status="proposed").exists()):
         raise BusinessConflict("Для документа завершения нужна согласованная смета и рассмотренные дополнения.")
-    profile=getattr(order.organization,"legal_profile",None)
+    try:
+        profile=order.organization.legal_profile
+    except ObjectDoesNotExist:
+        profile=None
     details=[
       cell("Автосервис",order.organization.name),cell("Филиал",order.branch.name),
       cell("Исполнитель",profile.legal_name if profile else "Реквизиты не заполнены"),
