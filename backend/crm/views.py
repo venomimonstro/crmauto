@@ -84,7 +84,11 @@ class VehicleList(TenantAPIView):
         if q:
             qs = qs.filter(Q(vin__icontains=q) | Q(plate__icontains=q) |
                            Q(make__icontains=q) | Q(model__icontains=q))
-        return Response(VehicleSerializer(qs.order_by("-created_at")[:100], many=True).data)
+        payload = VehicleSerializer(qs.order_by("-created_at")[:100], many=True).data
+        if self.scope.membership.role not in READERS:
+            for item in payload:
+                item.pop("current_owner", None)
+        return Response(payload)
 
     def post(self, request):
         require_roles(self.scope, *EDITORS)
@@ -116,6 +120,9 @@ class VehicleDetail(TenantAPIView):
         require_roles(self.scope, *VEHICLE_READERS)
         car = get_object_or_404(Vehicle, pk=pk, organization_id=self.scope.organization_id)
         data = VehicleSerializer(car).data
+        # A mechanic/stock role never receives even the owner's UUID.
+        if self.scope.membership.role not in READERS:
+            data.pop("current_owner", None)
         # A mechanic can view a car but not the full identity history.
         if self.scope.membership.role in READERS:
             data["owners_history"] = OwnershipSerializer(car.ownerships.order_by("created_at"), many=True).data
@@ -159,7 +166,11 @@ class Search(TenantAPIView):
         v = Vehicle.objects.filter(organization_id=self.scope.organization_id).filter(
             Q(vin__icontains=q) | Q(plate__icontains=q) | Q(make__icontains=q)
         ).order_by("-created_at")[:20]
-        result = {"vehicles": VehicleSerializer(v, many=True).data, "customers": []}
+        vehicle_rows = VehicleSerializer(v, many=True).data
+        if self.scope.membership.role not in READERS:
+            for item in vehicle_rows:
+                item.pop("current_owner", None)
+        result = {"vehicles": vehicle_rows, "customers": []}
         if self.scope.membership.role in READERS:
             match = Q(name__icontains=q)
             if digits(q):
