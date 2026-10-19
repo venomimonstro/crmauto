@@ -115,3 +115,19 @@ class RepairTask(models.Model):
             models.CheckConstraint(condition=Q(completed_at__isnull=True)|Q(started_at__isnull=False),
                 name="wo_task_end_requires_start"),
         ]
+
+class OrderDocument(models.Model):
+    """A versioned, immutable-by-API, printable snapshot. No forged signature state."""
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    organization=models.ForeignKey("identity.Organization",on_delete=models.PROTECT)
+    order=models.ForeignKey(WorkOrder,related_name="documents",on_delete=models.PROTECT)
+    doc_type=models.CharField(max_length=20,choices=[
+        ("work_order","Заказ-наряд"),("intake","Акт приёмки"),
+        ("completion","Акт работ (проект)"),("handover","Акт выдачи (проект)")])
+    revision=models.PositiveIntegerField()
+    html_snapshot=models.TextField()
+    sha256=models.CharField(max_length=64)
+    created_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    created_at=models.DateTimeField(default=timezone.now)
+    class Meta:
+        constraints=[models.UniqueConstraint(fields=["order","doc_type","revision"],name="wo_document_version_unique")]
