@@ -1,10 +1,11 @@
 import uuid
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from identity.models import User,Organization,Branch,Membership
 from inventory.models import Warehouse,Part,Stock,Movement
 from procurement.models import GoodsReceipt,PurchaseOrder
 
+@override_settings(BILLING_ENFORCE_WRITES=False)
 class ProcurementContracts(TestCase):
     def setUp(self):
         self.org=Organization.objects.create(name="СТО А")

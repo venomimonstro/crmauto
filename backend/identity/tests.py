@@ -1,10 +1,11 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from identity.models import Branch, MemberBranch, Membership, Organization, User
 from identity.scope import resolve_scope
 from rest_framework.exceptions import NotFound, PermissionDenied
 
 
+@override_settings(BILLING_ENFORCE_WRITES=False)
 class TenantIsolationTests(TestCase):
     def setUp(self):
         self.owner = User.objects.create_user("owner@test.invalid", "CorrectHorseBattery999!")

@@ -1,9 +1,10 @@
 import uuid
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from identity.models import Membership, Organization, User
 from crm.models import Customer, Ownership
 
+@override_settings(BILLING_ENFORCE_WRITES=False)
 class CRMContracts(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("main@example.invalid", "CorrectHorseBattery999!")

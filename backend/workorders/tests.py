@@ -1,6 +1,6 @@
 import uuid
 from datetime import timedelta
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 from crm.models import Customer,Vehicle
@@ -8,6 +8,7 @@ from identity.models import Organization,Branch,Membership,User
 from scheduling.models import Appointment,Visit
 from .models import WorkOrder,Estimate,EstimateLine
 
+@override_settings(BILLING_ENFORCE_WRITES=False)
 class WorkOrderContracts(TestCase):
     def setUp(self):
         self.org=Organization.objects.create(name="СТО А")

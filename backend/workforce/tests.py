@@ -1,12 +1,13 @@
 import uuid
 from datetime import timedelta
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 from identity.models import Organization,Branch,Membership,User
 from crm.models import Customer
 from workforce.models import TireSet,Shift
 
+@override_settings(BILLING_ENFORCE_WRITES=False)
 class WorkforceContracts(TestCase):
     def setUp(self):
         self.org=Organization.objects.create(name="A")

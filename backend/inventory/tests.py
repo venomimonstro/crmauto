@@ -1,6 +1,6 @@
 import uuid
 from datetime import timedelta
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 from identity.models import User,Organization,Branch,Membership
@@ -9,6 +9,7 @@ from scheduling.models import Appointment,Visit
 from workorders.models import WorkOrder
 from .models import Stock,Movement
 
+@override_settings(BILLING_ENFORCE_WRITES=False)
 class StockContracts(TestCase):
     def setUp(self):
         self.org=Organization.objects.create(name="СТО")

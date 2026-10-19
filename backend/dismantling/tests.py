@@ -1,10 +1,11 @@
 import uuid
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from identity.models import Organization,Branch,Membership,User
 from inventory.models import Warehouse
 from dismantling.models import SalvagedPart
 
+@override_settings(BILLING_ENFORCE_WRITES=False)
 class DismantlingContracts(TestCase):
     def setUp(self):
         self.org=Organization.objects.create(name="Сервис")

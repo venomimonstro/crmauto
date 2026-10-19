@@ -11,12 +11,13 @@ class HealthTests(SimpleTestCase):
     def test_health_not_mutable(self):
         self.assertEqual(self.client.post(reverse("live")).status_code, 405)
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from identity.models import Organization, Membership, User
 from crm.models import Customer
 
 
+@override_settings(BILLING_ENFORCE_WRITES=False)
 class IdempotencyIsolationTests(TestCase):
     def test_receipt_from_another_user_is_not_returned(self):
         org=Organization.objects.create(name="Service")
