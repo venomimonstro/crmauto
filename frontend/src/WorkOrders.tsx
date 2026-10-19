@@ -1,5 +1,6 @@
 import { useCallback,useEffect,useRef,useState,type FormEvent } from "react";
 import { api,type Customer,type Vehicle } from "./api";
+import RepairTasks from "./RepairTasks";
 type Branch={id:string;name:string};
 type Visit={id:string;branch_id:string;customer_id:string;vehicle_id:string;status:string};
 type Order={id:string;visit_id:string;customer_id:string;vehicle_id:string;status:string;version:number;complaint:string};
@@ -126,6 +127,7 @@ export default function WorkOrders({organization,role,customers,vehicles}:{
         {selected.order.status==="qa"&&<><button disabled={busy} onClick={()=>void action("ready")}>Готов</button>
           <button disabled={busy} onClick={()=>void action("rework")}>На доработку</button></>}
       </div>}
+      {["approved","in_progress","qa","ready"].includes(selected.order.status)&&<RepairTasks organization={organization} orderId={selected.order.id} role={role}/>}
       {selected.order.status==="ready"&&<div className="notice info">Выдача автомобиля будет доступна после реализации документов и кассы в S08.</div>}
     </section>}
     {creating&&<div className="modal-backdrop"><div className="modal" role="dialog" aria-modal="true" aria-labelledby="wo-new">
