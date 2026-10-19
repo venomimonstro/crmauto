@@ -1,4 +1,5 @@
 from django.urls import path
+from .invitations import StaffInvitations, AcceptStaffInvitation
 from .email_auth import (EmailSignup, EmailVerify, PasswordRecoveryRequest,
                          PasswordRecoveryConfirm, PublicAuthStatus)
 from .views import (BranchesView, CsrfView, LoginView, LogoutView, MeView,
@@ -17,4 +18,6 @@ urlpatterns = [
     path("auth/me", MeView.as_view()),
     path("organizations", OrganizationsView.as_view()),
     path("branches", BranchesView.as_view()),
+    path("staff/invitations", StaffInvitations.as_view()),
+    path("staff/invitations/accept", AcceptStaffInvitation.as_view()),
 ]
