@@ -57,3 +57,29 @@ class DailyOperationsContracts(TestCase):
         sub.save(update_fields=["paid_through"])
         response=self.daily(self.branch)
         self.assertEqual(response.status_code,200,response.content)
+
+    def test_refunded_amount_is_again_visible_as_debt(self):
+        from finance.models import Invoice
+        from workorders.models import Estimate
+        customer=Customer.objects.create(organization=self.org,name="Возврат")
+        vehicle=Vehicle.objects.create(organization=self.org,make="Toyota",model="Corolla")
+        start=timezone.now()
+        appointment=Appointment.objects.create(organization=self.org,branch=self.branch,
+            customer=customer,vehicle=vehicle,start_at=start,end_at=start+timedelta(hours=1))
+        visit=Visit.objects.create(organization=self.org,branch=self.branch,
+            appointment=appointment,customer=customer,vehicle=vehicle)
+        order=WorkOrder.objects.create(organization=self.org,branch=self.branch,
+            visit=visit,customer=customer,vehicle=vehicle,created_by=self.owner,status="approved")
+        estimate=Estimate.objects.create(order=order,revision=1,state="approved",total_minor=10000)
+        invoice=Invoice.objects.create(organization=self.org,branch=self.branch,
+            order=order,estimate=estimate,amount_minor=10000,paid_minor=10000,refunded_minor=4000)
+        daily=self.daily(self.branch)
+        self.assertEqual(daily.status_code,200,daily.content)
+        self.assertEqual(daily.json()["outstanding_minor"],4000)
+        flagged=self.client.get("/api/v1/reports/losses?branch_id="+str(self.branch.id),
+            HTTP_X_ORGANIZATION_ID=str(self.org.id))
+        self.assertEqual(flagged.status_code,200,flagged.content)
+        unpaid=[x for x in flagged.json()["items"] if x["code"]=="unpaid_invoice"
+                and x["object_id"]==str(invoice.id)]
+        self.assertEqual(len(unpaid),1)
+        self.assertEqual(unpaid[0]["amount_minor"],4000)
