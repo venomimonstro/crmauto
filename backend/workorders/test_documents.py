@@ -79,3 +79,26 @@ class PrintableDocumentContracts(TestCase):
         response=self.create_doc("warranty")
         self.assertEqual(response.status_code,409,response.content)
         self.assertFalse(OrderDocument.objects.filter(doc_type="warranty").exists())
+
+    def test_policy_revision_is_frozen_in_printed_document(self):
+        from identity.models import ServicePolicy
+        from django.utils import timezone
+        original=ServicePolicy.objects.create(organization=self.org,version=1,
+            service_terms="Условия сервиса первой редакции. Подтверждаются отдельно.",
+            warranty_terms="Условия гарантии первой редакции. Подтверждаются отдельно.",
+            is_current=True,created_by=self.staff)
+        first=self.create_doc("work_order")
+        self.assertEqual(first.status_code,201,first.content)
+        original.is_current=False
+        original.save(update_fields=["is_current"])
+        ServicePolicy.objects.create(organization=self.org,version=2,
+            service_terms="Условия сервиса второй редакции. Подтверждаются отдельно.",
+            warranty_terms="Условия гарантии второй редакции. Подтверждаются отдельно.",
+            is_current=True,created_by=self.staff)
+        second=self.create_doc("work_order")
+        self.assertEqual(second.status_code,201,second.content)
+        old=self.client.get(f"/api/v1/workorders/{self.order.id}/documents/{first.json()['id']}",**self.headers)
+        new=self.client.get(f"/api/v1/workorders/{self.order.id}/documents/{second.json()['id']}",**self.headers)
+        self.assertIn("первой редакции",old.json()["html"])
+        self.assertNotIn("второй редакции",old.json()["html"])
+        self.assertIn("второй редакции",new.json()["html"])
