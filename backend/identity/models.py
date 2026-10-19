@@ -135,3 +135,24 @@ class StaffInvitation(models.Model):
     expires_at = models.DateTimeField()
     accepted_at = models.DateTimeField(null=True, blank=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
+
+class OrganizationLegalProfile(models.Model):
+    """Entered by tenant admin: no government-registry verification implied."""
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    organization=models.OneToOneField(Organization,on_delete=models.PROTECT,related_name="legal_profile")
+    legal_name=models.CharField(max_length=250,blank=True)
+    entity_kind=models.CharField(max_length=20,choices=[("company","Юридическое лицо"),
+        ("individual","ИП"),("self_employed","Самозанятый")],default="company")
+    inn=models.CharField(max_length=12,blank=True)
+    kpp=models.CharField(max_length=9,blank=True)
+    ogrn=models.CharField(max_length=15,blank=True)
+    postal_address=models.CharField(max_length=300,blank=True)
+    service_address=models.CharField(max_length=300,blank=True)
+    phone=models.CharField(max_length=32,blank=True)
+    email=models.EmailField(blank=True)
+    bank_name=models.CharField(max_length=200,blank=True)
+    bik=models.CharField(max_length=9,blank=True)
+    account_number=models.CharField(max_length=20,blank=True)
+    correspondent_account=models.CharField(max_length=20,blank=True)
+    tax_label=models.CharField(max_length=100,blank=True)
+    version=models.PositiveIntegerField(default=1)

@@ -1,4 +1,5 @@
 from django.urls import path
+from .legal import LegalProfile
 from .invitations import (StaffInvitations, AcceptStaffInvitation, RevokeStaffInvitation,
                           StaffMembers, DeactivateStaffMember)
 from .email_auth import (EmailSignup, EmailVerify, PasswordRecoveryRequest,
@@ -7,6 +8,7 @@ from .views import (BranchesView, CsrfView, LoginView, LogoutView, MeView,
                     OrganizationsView, RegisterView)
 
 urlpatterns = [
+    path("organization/legal-profile",LegalProfile.as_view()),
     path("auth/csrf", CsrfView.as_view()),
     path("auth/register", RegisterView.as_view()),
     path("auth/capabilities", PublicAuthStatus.as_view()),

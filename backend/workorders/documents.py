@@ -29,8 +29,14 @@ def compose(order,kind):
         raise BusinessConflict("Документ завершения возможен только после выполнения работ.")
     if kind in ("completion","handover") and (not estimate or order.additional_works.filter(status="proposed").exists()):
         raise BusinessConflict("Для документа завершения нужна согласованная смета и рассмотренные дополнения.")
+    profile=getattr(order.organization,"legal_profile",None)
     details=[
       cell("Автосервис",order.organization.name),cell("Филиал",order.branch.name),
+      cell("Исполнитель",profile.legal_name if profile else "Реквизиты не заполнены"),
+      cell("ИНН",profile.inn if profile else "не указан"),
+      cell("ОГРН/ОГРНИП",profile.ogrn if profile else "не указан"),
+      cell("Адрес исполнителя",profile.service_address if profile else "не указан"),
+      cell("Телефон исполнителя",profile.phone if profile else "не указан"),
       cell("Клиент",customer.name),cell("Автомобиль",vehicle.make+" "+vehicle.model),
       cell("VIN",vehicle.vin or "не указан"),cell("Госномер",vehicle.plate or "не указан"),
       cell("Заказ-наряд",str(order.pk)),cell("Дата формирования",issued.strftime("%d.%m.%Y %H:%M")),
