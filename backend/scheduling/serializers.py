@@ -8,10 +8,10 @@ class BaySerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "active")
 
 class AppointmentSerializer(serializers.ModelSerializer):
-    branch_id = serializers.UUIDField(write_only=True)
-    customer_id = serializers.UUIDField(write_only=True)
-    vehicle_id = serializers.UUIDField(write_only=True)
-    bay_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
+    branch_id = serializers.UUIDField()
+    customer_id = serializers.UUIDField()
+    vehicle_id = serializers.UUIDField()
+    bay_id = serializers.UUIDField(required=False, allow_null=True)
     class Meta:
         model = Appointment
         fields = ("id", "branch_id", "customer_id", "vehicle_id", "bay_id", "start_at", "end_at", "status", "description", "version")
