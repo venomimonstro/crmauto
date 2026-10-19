@@ -1,6 +1,7 @@
 import { useCallback,useEffect,useRef,useState,type FormEvent } from "react";
 import { api,type Customer,type Vehicle } from "./api";
 import RepairTasks from "./RepairTasks";
+import OrderDocuments from "./OrderDocuments";
 type Branch={id:string;name:string};
 type Visit={id:string;branch_id:string;customer_id:string;vehicle_id:string;status:string};
 type Order={id:string;visit_id:string;customer_id:string;vehicle_id:string;status:string;version:number;complaint:string};
@@ -97,6 +98,7 @@ export default function WorkOrders({organization,role,customers,vehicles}:{
         <p className="muted">Статус: {STATES[selected.order.status]}; версия: {selected.order.version}</p></div>
         <button className="secondary" onClick={()=>setSelected(null)}>Закрыть</button></div>
       <p>{selected.order.complaint||"Причина обращения не указана"}</p>
+      <OrderDocuments organization={organization} orderId={selected.order.id} orderStatus={selected.order.status} canEdit={canEdit}/>
       <h2>Сметы и история согласования</h2>
       {selected.estimates.map(est=><div key={est.id} style={{padding:"14px 0",borderTop:"1px solid #e5e9ec"}}>
         <strong>Редакция №{est.revision} · {money(est.total_minor)} · {est.state}</strong>
