@@ -1,6 +1,8 @@
 from django.contrib.auth import authenticate, login, logout
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
+from datetime import timedelta
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
@@ -84,9 +86,15 @@ class OrganizationsView(APIView):
 
     @transaction.atomic
     def post(self, request):
+        if Membership.objects.filter(user=request.user, role=Membership.Roles.OWNER).exists():
+            raise ValidationError({"organization":"Повторное создание организаций пока ограничено. Используйте филиалы или обратитесь к администратору SaaS."})
+        from billing.models import Plan, Subscription
+        plan=Plan.objects.get(code="trial", active=True)
         data = OrganizationSerializer(data=request.data)
         data.is_valid(raise_exception=True)
         org = data.save()
+        Subscription.objects.create(organization=org,plan=plan,state="trial",
+            trial_ends_at=timezone.now()+timedelta(days=14))
         branch = Branch.objects.create(organization=org, name="Основной", code="main")
         Membership.objects.create(organization=org, user=request.user, role=Membership.Roles.OWNER)
         AuditEvent.objects.create(organization=org, actor=request.user, event_type="organization.created",
@@ -109,6 +117,13 @@ class BranchesView(TenantAPIView):
     @transaction.atomic
     def post(self, request):
         require_roles(self.scope, Membership.Roles.OWNER, Membership.Roles.MANAGER)
+        from django.conf import settings
+        if settings.BILLING_ENFORCE_WRITES:
+            from billing.models import Subscription
+            from core.commands import BusinessConflict
+            sub = Subscription.objects.select_related("plan").get(organization=self.scope.organization)
+            if Branch.objects.filter(organization=self.scope.organization).count() >= sub.plan.max_branches:
+                raise BusinessConflict("Достигнут лимит филиалов. Измените тариф.")
         data = BranchSerializer(data=request.data)
         data.is_valid(raise_exception=True)
         branch = data.save(organization=self.scope.organization)
