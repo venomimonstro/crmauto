@@ -6,6 +6,7 @@ type Order={id:string;visit_id:string;customer_id:string;vehicle_id:string;statu
 type Line={id:string;kind:string;title:string;quantity:string;unit_price_minor:number;total_minor:number};
 type Estimate={id:string;revision:number;state:string;total_minor:number;lines:Line[]};
 type Detail={order:Order;estimates:Estimate[];history:{from:string;to:string;at:string}[]};
+type Additional={id:string;title:string;description:string;amount_minor:number;status:string};
 const STATES:Record<string,string>={draft:"Черновик",awaiting:"Ожидает согласования",approved:"Согласован",in_progress:"Ремонт",qa:"Проверка",ready:"Готов",delivered:"Выдан",cancelled:"Отменён"};
 const money=(n:number)=>(n/100).toLocaleString("ru-RU",{style:"currency",currency:"RUB"});
 const errmsg=(e:unknown)=>e instanceof Error?e.message:"Ошибка операции";
@@ -20,6 +21,7 @@ export default function WorkOrders({organization,role,customers,vehicles}:{
   const [quantity,setQuantity]=useState("1"),[price,setPrice]=useState("0");
   const [reference,setReference]=useState(""),[busy,setBusy]=useState(false);
   const [creating,setCreating]=useState(false);
+  const [findings,setFindings]=useState<Additional[]>([]);
   const creation=useRef<{payload:string;key:string}|null>(null);
   const canEdit=["owner","manager","adviser"].includes(role);
   const headers={organization};
@@ -31,7 +33,7 @@ export default function WorkOrders({organization,role,customers,vehicles}:{
     ]);setVisits(v);setOrders(o);
   },[branch,organization]);
   const loadDetail=useCallback(async(id:string)=>{
-    const detail=await api<Detail>("workorders/"+id,headers);setSelected(detail);
+    const [detail,extra]=await Promise.all([api<Detail>("workorders/"+id,headers),api<Additional[]>("workorders/"+id+"/additional-works",headers)]);setSelected(detail);setFindings(extra);
   },[organization]);
   useEffect(()=>{let alive=true;api<Branch[]>("branches",headers).then(x=>{
     if(!alive)return;setBranches(x);setBranch(previous=>x.some(b=>b.id===previous)?previous:x[0]?.id??"");
@@ -96,6 +98,10 @@ export default function WorkOrders({organization,role,customers,vehicles}:{
           </select></label><label>Количество<input required min="0.001" step="0.001" type="number" value={quantity} onChange={e=>setQuantity(e.target.value)}/></label></div>
           <label>Цена за единицу, ₽<input type="number" required min="0" step="0.01" value={price} onChange={e=>setPrice(e.target.value)}/></label>
           <button className="primary" disabled={busy}>Добавить в смету</button></form>}
+      {findings.length>0&&<section><h2>Дополнительные неисправности</h2>
+        <p className="muted">Новые работы не согласованы и не включены в счёт.</p>
+        {findings.map(f=><p key={f.id}>{f.title} · {money(f.amount_minor)} · {f.status}</p>)}
+      </section>}
       {canEdit&&<div className="quick-actions" style={{marginTop:18}}>
         {selected.order.status==="draft"&&<button disabled={busy} onClick={()=>void action("submit")}>Передать на согласование</button>}
         {selected.order.status==="awaiting"&&<><label>Основание согласования<input value={reference} onChange={e=>setReference(e.target.value)} placeholder="Подписанный документ / подтверждение"/></label>
