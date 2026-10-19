@@ -93,7 +93,7 @@ class Reserve(TenantAPIView):
             row=Stock.objects.select_for_update().get(pk=row.pk)
             order=get_object_or_404(WorkOrder,pk=request.data.get("order_id"),organization=self.scope.organization)
             valid_branch(self.scope,order.branch_id)
-            if order.branch_id!=row.warehouse.branch_id or order.status in ("delivered","cancelled"):
+            if order.branch_id!=row.warehouse.branch_id or order.status not in ("approved","in_progress"):
                 raise BusinessConflict("Нельзя резервировать для этого заказ-наряда.")
             try: qty=int(request.data.get("quantity",0))
             except (ValueError,TypeError):raise ValidationError({"quantity":"Необходимо целое число."})
@@ -121,7 +121,7 @@ class ReservationAction(TenantAPIView):
             row.reserved-=r.quantity
             movement=None
             if action=="issue":
-                if r.order.status not in ("in_progress","qa","ready"):
+                if r.order.status not in ("in_progress","qa"):
                     raise BusinessConflict("Расход только в процессе ремонта.")
                 row.quantity-=r.quantity
                 movement=Movement.objects.create(organization=self.scope.organization,stock=row,reservation=r,kind="issue",quantity=r.quantity)
