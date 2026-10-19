@@ -9,6 +9,7 @@ import WorkOrders from "./WorkOrders";
 import Inventory from "./Inventory";
 import Reports from "./Reports";
 import Dismantling from "./Dismantling";
+import CashDesk from "./CashDesk";
 import { api, ApiError, type Customer, type Organization, type SessionUser, type Vehicle } from "./api";
 
 type Area = "dashboard" | "customers" | "vehicles" | "orders" | "lifts" | "tyres" |
@@ -24,7 +25,7 @@ const navigation: { key: Area; title: string; icon: typeof Users; ready: boolean
   { key: "donors", title: "Авторазбор", icon: Wrench, ready: true },
   { key: "suppliers", title: "Закупки и продажи", icon: ShoppingCart, ready: true },
   { key: "personnel", title: "Персонал", icon: Users, ready: false },
-  { key: "cash", title: "Касса", icon: CreditCard, ready: false },
+  { key: "cash", title: "Касса", icon: CreditCard, ready: true },
   { key: "reports", title: "Отчёты", icon: BarChart3, ready: true },
   { key: "settings", title: "Настройки", icon: Settings, ready: false },
 ];
@@ -257,6 +258,7 @@ export default function App(){
         {area==="dashboard"?<Dashboard customers={customers} vehicles={vehicles} loading={dataLoading} navigate={navigate}/>:
          area==="customers"?<Customers organization={activeOrg.id} items={customers} refresh={refreshData} canEdit={["owner","manager","adviser"].includes(activeOrg.role)}/>:
          area==="vehicles"?<Vehicles organization={activeOrg.id} vehicles={vehicles} customers={customers} refresh={refreshData} canEdit={["owner","manager","adviser"].includes(activeOrg.role)}/>:
+         area==="cash"&&["owner","manager","cashier","viewer"].includes(activeOrg.role)?<CashDesk organization={activeOrg.id} role={activeOrg.role}/>:
          area==="donors"?<Dismantling organization={activeOrg.id} role={activeOrg.role}/>:
          area==="reports"&&["owner","manager","viewer"].includes(activeOrg.role)?<Reports organization={activeOrg.id}/>:
          (area==="inventory"||area==="suppliers")?<Inventory organization={activeOrg.id} role={activeOrg.role}/>:
