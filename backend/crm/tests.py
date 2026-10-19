@@ -60,13 +60,13 @@ class CRMContracts(TestCase):
         self.assertEqual(again.status_code, 409)
 
     def test_invalid_csv_is_not_partially_imported(self):
-        bad_csv = "name,kind,phone,email\\nВалидный,person,,\\n,person,,"
+        bad_csv = "name,kind,phone,email\nВалидный,person,,\n,person,,"
         result = self.post("/api/v1/customers/import/apply", {"csv": bad_csv})
         self.assertEqual(result.status_code, 400)
         self.assertEqual(Customer.objects.filter(organization=self.company).count(), 0)
 
     def test_import_preview_has_no_side_effects(self):
-        valid_csv = "name,kind,phone,email\\nПётр Петров,person,,"
+        valid_csv = "name,kind,phone,email\nПётр Петров,person,,"
         preview = self.client.post("/api/v1/customers/import/preview",
                                    {"csv": valid_csv}, format="json", **self.org_header)
         self.assertEqual(preview.status_code, 200)
