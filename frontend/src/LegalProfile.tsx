@@ -21,7 +21,7 @@ export default function LegalProfile({organization}:{organization:string}){
   {error&&<p className="notice error">{error}</p>}{notice&&<p className="notice info">{notice}</p>}
   {!data?<div className="loading-inline">Загрузка реквизитов…</div>:<form onSubmit={save}>
    <label>Тип исполнителя<select value={data.entity_kind}
-    onChange={e=>setData({...data,entity_kind:e.target.value})}>
+    onChange={e=>{key.current=null;setData({...data,entity_kind:e.target.value,kpp:e.target.value==="company"?data.kpp:""});}}>
     <option value="company">Юридическое лицо</option><option value="individual">ИП</option>
     <option value="self_employed">Самозанятый</option></select></label>
    <div className="form-grid">{fields.filter(([field])=>field!=="kpp"||data.entity_kind==="company").map(([field,label])=>
