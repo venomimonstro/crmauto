@@ -98,6 +98,8 @@ def transition(order,actor,action,reference="",reason=""):
         raise ValidationError({"action":"Неизвестная операция."})
     if action=="start" and not Estimate.objects.filter(order=order,state="approved").exists():
         raise BusinessConflict("Ремонт запрещён до согласования сметы.")
+    if action=="qa" and order.repair_tasks.filter(state__in=["assigned","running"]).exists():
+        raise BusinessConflict("Нельзя передать в контроль качества с незавершёнными заданиями.")
     if action=="deliver":
         raise BusinessConflict("Выдача заблокирована до реализации финансового и документарного контура S08.")
     if action=="cancel" and order.status!="draft":
