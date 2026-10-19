@@ -64,6 +64,24 @@ class EmailAccountTests(TestCase):
         self.assertEqual(result.status_code,202,result.content)
         self.assertEqual(User.objects.count(),1)
 
+
+    def test_abandoned_inactive_signup_can_be_restarted_safely(self):
+        first={"email":"abandoned@invalid.test","password":"InitialStrongPassword9988!"}
+        self.assertEqual(self.post("auth/signup-email",first).status_code,202)
+        user=User.objects.get(email=first["email"])
+        previous=default_token_generator.make_token(user)
+        cache.clear()  # Simulate a retry after the throttling window.
+        retry={"email":first["email"],"password":"UpdatedStrongPassword9977!"}
+        self.assertEqual(self.post("auth/signup-email",retry).status_code,202)
+        user.refresh_from_db()
+        uid=urlsafe_base64_encode(force_bytes(user.pk))
+        self.assertFalse(default_token_generator.check_token(user,previous))
+        latest=default_token_generator.make_token(user)
+        self.assertEqual(self.post("auth/email/verify",{
+            "uid":uid,"token":latest,"password":first["password"]}).status_code,400)
+        self.assertEqual(self.post("auth/email/verify",{
+            "uid":uid,"token":latest,"password":retry["password"]}).status_code,200)
+
     @override_settings(ENABLE_EMAIL_ONBOARDING=False)
     def test_disabled_signup_does_not_create_accounts(self):
         response=self.post("auth/signup-email",{
