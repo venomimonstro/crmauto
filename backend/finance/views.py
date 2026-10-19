@@ -18,7 +18,8 @@ class AmountInput(serializers.Serializer):
     invoice_id=serializers.UUIDField()
     cashbox_id=serializers.UUIDField()
     amount_minor=serializers.IntegerField(min_value=1,max_value=10**12)
-    method=serializers.ChoiceField(choices=['cash','card','bank'])
+    # Card/bank are not settled without verified PSP/bank reconciliation.
+    method=serializers.ChoiceField(choices=['cash'])
     reference=serializers.CharField(max_length=150)
 
 class RefundInput(serializers.Serializer):
