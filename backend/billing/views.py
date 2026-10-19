@@ -24,7 +24,7 @@ class CurrentSubscription(TenantAPIView):
         # Stored state is not sufficient: an expired active subscription may not grant writes.
         valid_paid=bool(subscription.paid_through and subscription.paid_through>now)
         valid_trial=bool(subscription.state=='trial' and subscription.trial_ends_at and subscription.trial_ends_at>now)
-        allowed=valid_paid or valid_trial
+        allowed=(subscription.state=='active' and valid_paid) or valid_trial
         return Response({'state':subscription.state,'access':'write' if allowed else 'read_only',
                          'plan_code':subscription.plan.code,
                          'paid_through':subscription.paid_through,
