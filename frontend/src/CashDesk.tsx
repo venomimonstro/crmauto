@@ -51,8 +51,14 @@ export default function CashDesk({organization,role}:{organization:string;role:s
  }
  async function perform(action:()=>Promise<void>){
    setBusy(true);setError("");setMessage("");
-   try{await action();await refresh();setMessage("Операция сохранена.");}
-   catch(e){setError(e instanceof Error?e.message:String(e));}finally{setBusy(false);}
+   try{
+     await action(); // A successful write must not be reported as failed if the next GET fails.
+     setMessage("Операция успешно записана во внутренний журнал.");
+     try{await refresh();}
+     catch(e){setError("Запись сохранена, но обновление списка не удалось: "+
+       (e instanceof Error?e.message:String(e))+". Проверьте журнал перед повтором.");}
+   }catch(e){setError(e instanceof Error?e.message:String(e));}
+   finally{setBusy(false);}
  }
  async function addBox(e:FormEvent){e.preventDefault();await perform(async()=>{
    await send("cashboxes",{branch_id:branch,name:boxName});setBoxName("");});}
