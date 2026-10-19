@@ -57,7 +57,7 @@ class TokenOnly(serializers.Serializer):
 def user_from_uid(uid):
     try:
         return User.objects.get(pk=force_str(urlsafe_base64_decode(uid)))
-    except (ValueError,TypeError,User.DoesNotExist,OverflowError):
+    except (ValueError,TypeError,User.DoesNotExist,OverflowError,UnicodeError):
         return None
 
 
