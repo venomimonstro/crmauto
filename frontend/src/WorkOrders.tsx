@@ -22,6 +22,7 @@ export default function WorkOrders({organization,role,customers,vehicles}:{
   const [reference,setReference]=useState(""),[busy,setBusy]=useState(false);
   const [creating,setCreating]=useState(false);
   const [findings,setFindings]=useState<Additional[]>([]);
+  const [extraTitle,setExtraTitle]=useState(""),[extraDescription,setExtraDescription]=useState(""),[extraPrice,setExtraPrice]=useState("0");
   const creation=useRef<{payload:string;key:string}|null>(null);
   const canEdit=["owner","manager","adviser"].includes(role);
   const headers={organization};
@@ -66,6 +67,17 @@ export default function WorkOrders({organization,role,customers,vehicles}:{
       await load();await loadDetail(selected.order.id);setReference("");
     }catch(e){setNotice(errmsg(e));}finally{setBusy(false);}
   }
+  async function proposeAdditional(e:FormEvent){
+    e.preventDefault();if(!selected)return;
+    const value=Math.round(Number(extraPrice)*100);
+    if(!Number.isSafeInteger(value)||value<0){setNotice("Неверная стоимость");return;}
+    setBusy(true);setNotice("");
+    try{
+      await api("workorders/"+selected.order.id+"/additional-works",{method:"POST",organization,
+        idempotencyKey:crypto.randomUUID(),data:{title:extraTitle,description:extraDescription,amount_minor:value}});
+      setExtraTitle("");setExtraDescription("");setExtraPrice("0");await loadDetail(selected.order.id);
+    }catch(e){setNotice(errmsg(e));}finally{setBusy(false);}
+  }
   const current=selected?.estimates.at(-1);
   const active=visits.filter(v=>v.status==="open"&&!orders.some(o=>o.visit_id===v.id));
   return <><div className="page-lead"><div><div className="eyebrow">Производство</div>
@@ -102,6 +114,7 @@ export default function WorkOrders({organization,role,customers,vehicles}:{
         <p className="muted">Новые работы не согласованы и не включены в счёт.</p>
         {findings.map(f=><p key={f.id}>{f.title} · {money(f.amount_minor)} · {f.status}</p>)}
       </section>}
+      {canEdit&&["in_progress","qa"].includes(selected.order.status)&&<form onSubmit={proposeAdditional}><h2>Зафиксировать дополнительную неисправность</h2><label>Работа<input required value={extraTitle} onChange={e=>setExtraTitle(e.target.value)}/></label><label>Причина<input required value={extraDescription} onChange={e=>setExtraDescription(e.target.value)}/></label><label>Стоимость, ₽<input required type="number" step="0.01" min="0" value={extraPrice} onChange={e=>setExtraPrice(e.target.value)}/></label><button className="secondary" disabled={busy}>Предложить на согласование</button></form>}
       {canEdit&&<div className="quick-actions" style={{marginTop:18}}>
         {selected.order.status==="draft"&&<button disabled={busy} onClick={()=>void action("submit")}>Передать на согласование</button>}
         {selected.order.status==="awaiting"&&<><label>Основание согласования<input value={reference} onChange={e=>setReference(e.target.value)} placeholder="Подписанный документ / подтверждение"/></label>
