@@ -52,3 +52,14 @@ class LegalProfileDocumentsTests(TestCase):
         detail=self.client.get(f"/api/v1/workorders/{order.id}/documents/{result.json()['id']}",**self.h)
         self.assertIn("7701234567",detail.json()["html"])
         self.assertIn("ООО Сервис",detail.json()["html"])
+
+    def test_rejects_incorrect_identifiers(self):
+        original=self.client.get("/api/v1/organization/legal-profile",**self.h)
+        self.assertEqual(original.status_code,200,original.content)
+        result=self.client.patch("/api/v1/organization/legal-profile",{
+            "entity_kind":"company","inn":"123","bik":"12AB56789"},
+            format="json",HTTP_IF_MATCH="1",HTTP_IDEMPOTENCY_KEY=str(uuid4()),**self.h)
+        self.assertEqual(result.status_code,400,result.content)
+        profile=OrganizationLegalProfile.objects.get(organization=self.org)
+        self.assertEqual(profile.version,1)
+        self.assertEqual(profile.inn,"")
