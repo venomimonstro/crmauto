@@ -14,7 +14,7 @@ export default function RepairTasks({organization,orderId,role}:{
  const [title,setTitle]=useState("");
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
  const [notice,setNotice]=useState("");
- const canAssign=["owner","manager","adviser"].includes(role);
+ const canAssign=["owner","manager"].includes(role);
  const canAction=["owner","manager","adviser","mechanic"].includes(role);
  const refresh=useCallback(async()=>{
    const jobs=await api<Task[]>("workorders/"+orderId+"/tasks",{organization});
