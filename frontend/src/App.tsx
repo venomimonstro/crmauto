@@ -12,6 +12,8 @@ import Dismantling from "./Dismantling";
 import CashDesk from "./CashDesk";
 import SubscriptionPage from "./SubscriptionPage";
 import { Staff, AcceptInvitation } from "./Staff";
+import TireStorage from "./TireStorage";
+import OwnerDashboard from "./OwnerDashboard";
 import { api, ApiError, type Customer, type Organization, type SessionUser, type Vehicle } from "./api";
 
 type Area = "dashboard" | "customers" | "vehicles" | "orders" | "lifts" | "tyres" |
@@ -22,10 +24,10 @@ const navigation: { key: Area; title: string; icon: typeof Users; ready: boolean
   { key: "vehicles", title: "Автомобили", icon: CarFront, ready: true },
   { key: "orders", title: "Заказ-наряды", icon: ClipboardList, ready: true },
   { key: "lifts", title: "Подъёмники", icon: Gauge, ready: true },
-  { key: "tyres", title: "Шиномонтаж", icon: CalendarDays, ready: false },
+  { key: "tyres", title: "Шиномонтаж", icon: CalendarDays, ready: true },
   { key: "inventory", title: "Запчасти и склад", icon: Package, ready: true },
   { key: "donors", title: "Авторазбор", icon: Wrench, ready: true },
-  { key: "suppliers", title: "Закупки и продажи", icon: ShoppingCart, ready: true },
+  { key: "suppliers", title: "Закупки", icon: ShoppingCart, ready: true },
   { key: "personnel", title: "Персонал", icon: Users, ready: true },
   { key: "cash", title: "Касса", icon: CreditCard, ready: true },
   { key: "reports", title: "Отчёты", icon: BarChart3, ready: true },
@@ -157,20 +159,35 @@ function CreateOrganization({ onCreated }: { onCreated: () => Promise<void> }) {
       {error && <Notice>{error}</Notice>}<button disabled={busy} className="primary wide">{busy?"Сохраняем…":"Создать организацию"}</button></form>
   </div></main>;
 }
-function Dashboard({ customers, vehicles, loading, navigate }: {
-  customers: Customer[]; vehicles: Vehicle[]; loading: boolean; navigate:(s:Area)=>void
-}) {
-  return <><div className="page-lead"><div><div className="eyebrow">Рабочее пространство</div>
-    <h1>Обзор бизнеса</h1><p className="muted">Сейчас доступны основные справочники. Финансовые показатели появятся после разработки учётных модулей.</p></div></div>
-    <div className="stats"><div className="stat"><span>Клиенты <Users size={18}/></span><strong>{loading ? "—":customers.length}</strong><small>Первые 100 записей</small></div>
-      <div className="stat"><span>Автомобили <CarFront size={18}/></span><strong>{loading?"—":vehicles.length}</strong><small>Первые 100 записей</small></div>
-      <div className="stat"><span>Заказ-наряды <ClipboardList size={18}/></span><strong>—</strong><small>Модуль в разработке</small></div>
-      <div className="stat"><span>Склад <Package size={18}/></span><strong>—</strong><small>Модуль в разработке</small></div>
-    </div>
-    <section className="card action-card"><h2>Быстрые действия</h2>
-      <div className="quick-actions"><button onClick={()=>navigate("customers")}><Users size={20}/> Работа с клиентами</button>
-        <button onClick={()=>navigate("vehicles")}><CarFront size={20}/> Работа с автомобилями</button></div>
-    </section></>;
+function allowedArea(area:Area, role:string):boolean{
+ const roles:Record<Area,string[]>={
+  dashboard:["owner","manager","adviser","mechanic","stock","cashier","viewer"],
+  customers:["owner","manager","adviser","viewer"],
+  vehicles:["owner","manager","adviser","mechanic","stock","viewer"],
+  orders:["owner","manager","adviser","mechanic","viewer"],
+  lifts:["owner","manager","adviser","mechanic","viewer"],
+  tyres:["owner","manager","adviser","mechanic","viewer"],
+  inventory:["owner","manager","stock","adviser","viewer"],
+  donors:["owner","manager","stock","adviser","viewer"],
+  suppliers:["owner","manager","stock","adviser","viewer"],
+  personnel:["owner","manager"],
+  cash:["owner","manager","cashier","viewer"],
+  reports:["owner","manager","viewer"],
+  settings:["owner","manager"],
+ };
+ return roles[area].includes(role);
+}
+function Dashboard({role,navigate}:{role:string;navigate:(s:Area)=>void}){
+ const links=navigation.filter(x=>x.key!=="dashboard"&&x.ready&&allowedArea(x.key,role));
+ return <><div className="page-lead"><div>
+   <div className="eyebrow">Моё рабочее пространство</div>
+   <h1>Быстрый доступ к задачам</h1>
+   <p className="muted">Выберите рабочий раздел. Доступ зависит от роли и филиала.</p>
+ </div></div>
+ <section className="card action-card"><h2>Доступные разделы</h2>
+  <div className="quick-actions">{links.map(x=><button key={x.key}
+   onClick={()=>navigate(x.key)}>{x.title}</button>)}</div>
+ </section></>;
 }
 function retryKey(ref: { current: { signature: string; key: string } | null }, data: unknown): string {
   const signature = JSON.stringify(data);
@@ -302,7 +319,13 @@ export default function App(){
   async function logOut(){try{await api("auth/logout",{method:"POST"});}finally{
     setSession(null);setCustomers([]);setVehicles([]);setArea("dashboard");
   }}
-  function navigate(next:Area){setArea(next);setMenuOpen(false);}
+  function navigate(next:Area){
+    if(activeOrg&&allowedArea(next,activeOrg.role))setArea(next);
+    setMenuOpen(false);
+  }
+  useEffect(()=>{
+    if(activeOrg&&!allowedArea(area,activeOrg.role))setArea("dashboard");
+  },[activeOrg?.id,activeOrg?.role,area]);
   if(loading)return <div className="loading"><Activity size={24}/> Загрузка CRM…</div>;
   if(!session)return <Auth afterLogin={loadSession}/>;
   if(pendingInvite)return <AcceptInvitation token={pendingInvite}
@@ -320,7 +343,7 @@ export default function App(){
       {organizations.length>1&&<label className="org-select-label">Организация<select value={activeOrg.id} onChange={e=>setOrganizationId(e.target.value)}>
         {organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}
       <div className="menu-heading">РАБОЧЕЕ ПРОСТРАНСТВО</div>
-      <nav aria-label="Разделы CRM">{navigation.filter(item=>item.key!=="customers"||["owner","manager","adviser","viewer"].includes(activeOrg.role)).filter(item=>item.key!=="vehicles"||activeOrg.role!=="cashier").map(item=>{
+      <nav aria-label="Разделы CRM">{navigation.filter(item=>allowedArea(item.key,activeOrg.role)).map(item=>{
         const Icon=item.icon;return <button key={item.key} aria-current={area===item.key?"page":undefined}
           className={"nav-link "+(area===item.key?"active":"")} onClick={()=>navigate(item.key)}>
           <Icon size={18}/><span>{item.title}</span>{!item.ready&&<span className="lock-mark" title="В разработке">·</span>}</button>;
@@ -333,13 +356,18 @@ export default function App(){
         <span className="breadcrumbs">CRM <span>/</span> {selected?.title}</span></div>
         <div className="topbar-right"><span className="health-badge"><CheckCircle2 size={15}/> Тестовая сборка</span>
           <span className="user-pill">{session.email.slice(0,1).toUpperCase()}</span></div></header>
-      <main className="content" id="main">
+      <main key={activeOrg.id} className="content" id="main">
         {error&&<Notice>{error}</Notice>}
-        {area==="dashboard"?<Dashboard customers={customers} vehicles={vehicles} loading={dataLoading} navigate={navigate}/>:
+        {area==="dashboard"?(
+           ["owner","manager","viewer"].includes(activeOrg.role)
+            ?<OwnerDashboard organization={activeOrg.id} onNavigate={navigate}/>
+            :<Dashboard role={activeOrg.role} navigate={navigate}/>
+         ):
          area==="customers"?<Customers organization={activeOrg.id} items={customers} refresh={refreshData} canEdit={["owner","manager","adviser"].includes(activeOrg.role)}/>:
          area==="vehicles"?<Vehicles organization={activeOrg.id} vehicles={vehicles} customers={customers} refresh={refreshData} canEdit={["owner","manager","adviser"].includes(activeOrg.role)}/>:
          area==="settings"?<SubscriptionPage organization={activeOrg.id} role={activeOrg.role}/>:
          area==="personnel"?<Staff organization={activeOrg.id} role={activeOrg.role}/>:
+         area==="tyres"?<TireStorage organization={activeOrg.id} role={activeOrg.role} customers={customers} vehicles={vehicles}/>:
          area==="cash"&&["owner","manager","cashier","viewer"].includes(activeOrg.role)?<CashDesk organization={activeOrg.id} role={activeOrg.role}/>:
          area==="donors"?<Dismantling organization={activeOrg.id} role={activeOrg.role}/>:
          area==="reports"&&["owner","manager","viewer"].includes(activeOrg.role)?<Reports organization={activeOrg.id}/>:
