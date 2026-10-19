@@ -46,7 +46,8 @@ class LossCenter(TenantAPIView):
         require_roles(self.scope,*ROLES)
         branch=valid_branch(self.scope,request.query_params.get("branch_id"))
         organization=self.scope.organization
-        unpaid=Invoice.objects.filter(organization=organization,branch=branch).filter(\n            paid_minor__lt=F("amount_minor")+F("refunded_minor"))
+        unpaid=Invoice.objects.filter(organization=organization,branch=branch).filter(
+            paid_minor__lt=F("amount_minor")+F("refunded_minor"))
         stalled=WorkOrder.objects.filter(organization=organization,branch=branch,
             status__in=["awaiting","in_progress","qa"],created_at__lt=timezone.now()-timedelta(days=7))
         reserved=Reservation.objects.filter(organization=organization,stock__warehouse__branch=branch,
