@@ -37,34 +37,107 @@ function Notice({ children, type = "error" }: { children: ReactNode; type?: "err
   return <div className={"notice " + type} role={type === "error" ? "alert" : "status"}>{children}</div>;
 }
 function Auth({ afterLogin }: { afterLogin: () => Promise<void> }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  async function submit(e: FormEvent) {
-    e.preventDefault(); setSubmitting(true); setError("");
-    try {
-      await api("auth/login", { method: "POST", data: { email, password } });
-      await afterLogin();
-    } catch (err) { setError(errorText(err)); }
-    finally { setSubmitting(false); }
+  type Mode = "login" | "signup" | "forgot" | "verify" | "reset";
+  const params = new URLSearchParams(window.location.search);
+  const linkedMode: Mode = params.get("account_action")==="verify"?"verify":
+                            params.get("account_action")==="reset"?"reset":"login";
+  const [mode,setMode] = useState<Mode>(linkedMode);
+  const [enabled,setEnabled] = useState(false);
+  const [email,setEmail] = useState("");
+  const [password,setPassword] = useState("");
+  const [submitting,setSubmitting] = useState(false);
+  const [error,setError] = useState("");
+  const [notice,setNotice] = useState("");
+  const uid=params.get("uid")??"";
+  const token=params.get("token")??"";
+  useEffect(()=>{
+    let alive=true;
+    api<{email_signup_enabled:boolean}>("auth/capabilities")
+      .then(x=>{if(alive)setEnabled(x.email_signup_enabled);})
+      .catch(()=>{if(alive)setEnabled(false);});
+    return ()=>{alive=false;};
+  },[]);
+  function changeMode(next:Mode){
+    setMode(next);setError("");setNotice("");setPassword("");
   }
+  function completeLink(){
+    window.history.replaceState({}, "", window.location.pathname);
+    changeMode("login");
+  }
+  async function submit(e:FormEvent){
+    e.preventDefault();setSubmitting(true);setError("");setNotice("");
+    try{
+      if(mode==="login"){
+        await api("auth/login",{method:"POST",data:{email,password}});
+        await afterLogin();
+      }else if(mode==="signup"){
+        const data=await api<{message_ru:string}>("auth/signup-email",
+          {method:"POST",data:{email,password}});
+        setNotice(data.message_ru);
+      }else if(mode==="forgot"){
+        const data=await api<{message_ru:string}>("auth/password/recovery",
+          {method:"POST",data:{email}});
+        setNotice(data.message_ru);
+      }else if(mode==="verify"){
+        await api("auth/email/verify",{method:"POST",data:{uid,token}});
+        setNotice("Адрес подтверждён. Можно войти.");
+        window.history.replaceState({}, "", window.location.pathname);
+        setMode("login");
+      }else if(mode==="reset"){
+        await api("auth/password/confirm",{method:"POST",data:{uid,token,password}});
+        setNotice("Пароль изменён. Войдите с новым паролем.");
+        window.history.replaceState({}, "", window.location.pathname);
+        setMode("login");
+      }
+    }catch(err){setError(errorText(err));}
+    finally{setSubmitting(false);}
+  }
+  const captions:Record<Mode,string>={
+    login:"Вход в систему",signup:"Создать учётную запись",forgot:"Восстановить пароль",
+    verify:"Подтвердить электронную почту",reset:"Установить новый пароль"
+  };
   return <div className="auth-layout">
     <aside className="auth-intro">
       <div className="brand light"><span className="brand-mark"><Wrench size={21}/></span> CRM <strong>Автосервис</strong></div>
-      <h1>Управляйте сервисом. Контролируйте прибыль.</h1>
+      <h1>Управляйте сервисом. Контролируйте операции.</h1>
       <p>Клиенты, автомобили, ремонт, запчасти и авторазбор — в одной системе.</p>
       <div className="auth-features"><span><ShieldCheck size={17}/> Изоляция данных компаний</span>
-        <span><Activity size={17}/> Сквозной учёт операций</span></div>
+        <span><Activity size={17}/> Учёт операций и изменений</span></div>
     </aside>
     <main className="auth-main"><div className="login-card">
-      <div className="eyebrow">Личный кабинет</div><h2>Вход в систему</h2>
-      <p className="muted">Используйте зарегистрированную учётную запись.</p>
-      <form onSubmit={submit}><label>Электронная почта<input type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@company.ru"/></label>
-      <label>Пароль<input type="password" minLength={12} autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)} placeholder="Не менее 12 символов"/></label>
-      {error && <Notice>{error}</Notice>}
-      <button className="primary wide" disabled={submitting}>{submitting ? "Входим…" : "Войти в кабинет"}</button></form>
-      <Notice type="info">Открытая регистрация и восстановление доступа станут доступны после реализации проверки почты и защиты учётных записей.</Notice>
+      <div className="eyebrow">Доступ в CRM</div><h2>{captions[mode]}</h2>
+      {mode==="signup"&&<p className="muted">После регистрации подтвердите электронную почту по ссылке из письма.</p>}
+      {mode==="forgot"&&<p className="muted">Если адрес есть в системе, мы отправим ссылку для восстановления.</p>}
+      {mode==="verify"&&<p className="muted">Подтверждение адреса требуется для безопасного входа.</p>}
+      <form onSubmit={submit}>
+        {["login","signup","forgot"].includes(mode)&&<label>Электронная почта
+          <input type="email" autoComplete="email" required value={email}
+            onChange={e=>setEmail(e.target.value)} placeholder="name@company.ru"/>
+        </label>}
+        {["login","signup","reset"].includes(mode)&&<label>
+          {mode==="reset"?"Новый пароль":"Пароль"}
+          <input type="password" minLength={12}
+            autoComplete={mode==="login"?"current-password":"new-password"}
+            required value={password} onChange={e=>setPassword(e.target.value)}
+            placeholder="Не менее 12 символов"/>
+        </label>}
+        {error&&<Notice>{error}</Notice>}
+        {notice&&<Notice type="info">{notice}</Notice>}
+        <button className="primary wide" disabled={submitting||(["signup","forgot"].includes(mode)&&!enabled)}>
+          {submitting?"Сохранение…":
+            mode==="login"?"Войти":mode==="signup"?"Отправить письмо":
+            mode==="forgot"?"Восстановить доступ":mode==="verify"?"Подтвердить адрес":"Сменить пароль"}
+        </button>
+      </form>
+      <div className="quick-actions" style={{marginTop:15}}>
+        {mode==="login"&&enabled&&<>
+          <button type="button" onClick={()=>changeMode("signup")}>Регистрация</button>
+          <button type="button" onClick={()=>changeMode("forgot")}>Забыли пароль?</button>
+        </>}
+        {mode!=="login"&&<button type="button" onClick={completeLink}>Вернуться ко входу</button>}
+      </div>
+      {!enabled&&["signup","forgot","login"].includes(mode)&&
+        <Notice type="info">Самостоятельная регистрация включается после настройки защищённой отправки писем.</Notice>}
     </div></main>
   </div>;
 }
