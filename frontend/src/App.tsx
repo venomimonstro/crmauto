@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import Schedule from "./Schedule";
 import WorkOrders from "./WorkOrders";
+import Inventory from "./Inventory";
 import { api, ApiError, type Customer, type Organization, type SessionUser, type Vehicle } from "./api";
 
 type Area = "dashboard" | "customers" | "vehicles" | "orders" | "lifts" | "tyres" |
@@ -17,9 +18,9 @@ const navigation: { key: Area; title: string; icon: typeof Users; ready: boolean
   { key: "orders", title: "Заказ-наряды", icon: ClipboardList, ready: true },
   { key: "lifts", title: "Подъёмники", icon: Gauge, ready: true },
   { key: "tyres", title: "Шиномонтаж", icon: CalendarDays, ready: false },
-  { key: "inventory", title: "Запчасти и склад", icon: Package, ready: false },
+  { key: "inventory", title: "Запчасти и склад", icon: Package, ready: true },
   { key: "donors", title: "Авторазбор", icon: Wrench, ready: false },
-  { key: "suppliers", title: "Закупки и продажи", icon: ShoppingCart, ready: false },
+  { key: "suppliers", title: "Закупки и продажи", icon: ShoppingCart, ready: true },
   { key: "personnel", title: "Персонал", icon: Users, ready: false },
   { key: "cash", title: "Касса", icon: CreditCard, ready: false },
   { key: "reports", title: "Отчёты", icon: BarChart3, ready: false },
@@ -254,6 +255,7 @@ export default function App(){
         {area==="dashboard"?<Dashboard customers={customers} vehicles={vehicles} loading={dataLoading} navigate={navigate}/>:
          area==="customers"?<Customers organization={activeOrg.id} items={customers} refresh={refreshData} canEdit={["owner","manager","adviser"].includes(activeOrg.role)}/>:
          area==="vehicles"?<Vehicles organization={activeOrg.id} vehicles={vehicles} customers={customers} refresh={refreshData} canEdit={["owner","manager","adviser"].includes(activeOrg.role)}/>:
+         (area==="inventory"||area==="suppliers")?<Inventory organization={activeOrg.id} role={activeOrg.role}/>:
          area==="orders"?<WorkOrders organization={activeOrg.id} role={activeOrg.role} customers={customers} vehicles={vehicles}/>:
          area==="lifts"?<Schedule organization={activeOrg.id} role={activeOrg.role} customers={customers} vehicles={vehicles}/>:
          <ComingSoon name={selected?.title??"Раздел"}/>}
