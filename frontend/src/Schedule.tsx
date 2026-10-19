@@ -31,11 +31,23 @@ export default function Schedule({ organization, role, customers, vehicles }:{
   }).catch(e=>{if(active)setNotice(error(e));});return()=>{active=false;};},[organization]);
   useEffect(()=>{setBays([]);setBookings([]);void refresh().catch(e=>setNotice(error(e)));},[refresh]);
   async function addBooking(e:FormEvent){
-    e.preventDefault();setNotice("");setBusy(true);
+    e.preventDefault();setNotice("");
+    const startDate=new Date(start),endDate=new Date(end);
+    if(!Number.isFinite(startDate.getTime())||!Number.isFinite(endDate.getTime())){
+      setNotice("Укажите корректные дату и время записи.");return;
+    }
+    const duration=endDate.getTime()-startDate.getTime();
+    if(duration<=0||duration>24*60*60*1000){
+      setNotice("Окончание должно быть позже начала, длительность — не более 24 часов.");return;
+    }
+    if(!branch||!customer||!vehicle){
+      setNotice("Выберите филиал, клиента и автомобиль.");return;
+    }
     const data={branch_id:branch,customer_id:customer,vehicle_id:vehicle,bay_id:bay||null,
-      start_at:new Date(start).toISOString(),end_at:new Date(end).toISOString(),description};
+      start_at:startDate.toISOString(),end_at:endDate.toISOString(),description};
     const signature=JSON.stringify(data);
     if(idempotency.current?.signature!==signature)idempotency.current={signature,key:crypto.randomUUID()};
+    setBusy(true);
     try{
       await api("appointments",{method:"POST",organization,idempotencyKey:idempotency.current.key,data});
       idempotency.current=null;setAdding(false);await refresh();setNotice("Запись создана.");
