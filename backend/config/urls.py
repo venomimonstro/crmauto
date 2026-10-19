@@ -12,4 +12,5 @@ urlpatterns=[
     path("api/v1/",include("dismantling.urls")),
     path("api/v1/",include("workforce.urls")),
     path("api/v1/",include("billing.urls")),
+    path("api/v1/",include("portal.urls")),
 ]
