@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.db.models import Exists, OuterRef
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
@@ -27,11 +28,15 @@ class MyPortal(APIView):
 class PortalOrder(APIView):
     permission_classes=[IsAuthenticated]
     def get(self,request,pk):
-        order=get_object_or_404(WorkOrder,pk=pk,
-            customer__portalgrant__user=request.user,
-            customer__portalgrant__active=True,
-            customer__portalgrant__organization__is_active=True,
-            organization_id__in=PortalGrant.objects.filter(user=request.user,active=True).values('organization_id'))
+        valid_grant = PortalGrant.objects.filter(
+            user=request.user, active=True,
+            organization_id=OuterRef('organization_id'),
+            customer_id=OuterRef('customer_id'),
+            organization__is_active=True,
+            customer__archived_at__isnull=True,
+        )
+        order=get_object_or_404(WorkOrder.objects.annotate(
+            has_valid_grant=Exists(valid_grant)).filter(has_valid_grant=True),pk=pk)
         # A customer can see only submitted or approved versions, never internal draft.
         estimates=Estimate.objects.filter(order=order,state__in=['submitted','approved'])
         return Response({'id':str(order.id),'status':order.status,
