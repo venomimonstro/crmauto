@@ -13,15 +13,10 @@ ALLOWED_HOSTS = [x.strip() for x in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(
 if not ALLOWED_HOSTS:
     raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS is required.")
 CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if x.strip()]
-
 INSTALLED_APPS = [
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
-    "rest_framework",
-    "core",
+    "django.contrib.auth", "django.contrib.contenttypes", "django.contrib.sessions",
+    "django.contrib.messages", "django.contrib.staticfiles", "rest_framework",
+    "core", "identity",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -35,13 +30,9 @@ MIDDLEWARE = [
 ROOT_URLCONF = "config.urls"
 TEMPLATES = [{
     "BACKEND": "django.template.backends.django.DjangoTemplates",
-    "DIRS": [],
-    "APP_DIRS": True,
-    "OPTIONS": {"context_processors": [
-        "django.template.context_processors.debug",
-        "django.template.context_processors.request",
-        "django.contrib.auth.context_processors.auth",
-        "django.contrib.messages.context_processors.messages",
+    "DIRS": [], "APP_DIRS": True, "OPTIONS": {"context_processors": [
+        "django.template.context_processors.debug", "django.template.context_processors.request",
+        "django.contrib.auth.context_processors.auth", "django.contrib.messages.context_processors.messages",
     ]},
 }]
 WSGI_APPLICATION = "config.wsgi.application"
@@ -54,7 +45,7 @@ DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=60)}
 if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
     if not (DEBUG and os.getenv("ALLOW_SQLITE_TESTS") == "1"):
         raise ImproperlyConfigured("PostgreSQL is mandatory outside explicitly enabled local tests.")
-
+AUTH_USER_MODEL = "identity.User"
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 12}},
@@ -66,12 +57,15 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
-    "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
-    ],
+    "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.AnonRateThrottle", "rest_framework.throttling.UserRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {"anon": "30/min", "user": "120/min", "auth": "5/min"},
     "EXCEPTION_HANDLER": "core.errors.api_exception_handler",
+}
+REDIS_URL = os.getenv("REDIS_URL", "")
+if not REDIS_URL and not (DEBUG and os.getenv("ALLOW_SQLITE_TESTS") == "1"):
+    raise ImproperlyConfigured("REDIS_URL required for shared auth throttling.")
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": REDIS_URL}} if REDIS_URL else {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
 }
 LANGUAGE_CODE = "ru-ru"
 TIME_ZONE = "UTC"
@@ -82,9 +76,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_HTTPONLY = False  # React sends X-CSRFToken; cookie cannot authenticate a request.
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_HTTPONLY = False
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
