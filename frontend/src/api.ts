@@ -53,7 +53,20 @@ export async function api<T>(
       const p = payload as Record<string, unknown>;
       if (typeof p.message_ru === "string") message = p.message_ru;
       else if (typeof p.detail === "string") message = p.detail;
+      else {
+        const issues = Object.entries(p).flatMap(([key, value]) => {
+          const parts = Array.isArray(value) ? value : [value];
+          return parts.filter((x): x is string => typeof x === "string")
+            .slice(0, 2).map(x => (key === "non_field_errors" ? "" : key + ": ") + x);
+        });
+        if (issues.length) message = issues.slice(0, 3).join(" · ").slice(0, 450);
+      }
     }
+    if (!payload && response.status === 401) message = "Необходимо войти в систему.";
+    if (!payload && response.status === 403) message = "Недостаточно прав или истекла сессия.";
+    if (!payload && response.status === 409) message = "Данные изменены другим сотрудником. Обновите страницу.";
+    if (response.status === 429) message = "Слишком много запросов. Повторите действие позднее.";
+    if (response.status >= 500) message = "Ошибка сервера. Операция могла сохраниться — обновите данные перед повторением.";
     throw new ApiError(response.status, message);
   }
   return payload as T;
