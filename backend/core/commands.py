@@ -29,6 +29,8 @@ def execute_command(request, scope, operation, callback):
             organization_id=scope.organization_id, operation=operation, key=key
         ).first()
         if old:
+            if old.user_id != request.user.pk:
+                raise BusinessConflict("Ключ команды принадлежит другому пользователю.")
             if old.request_digest != digest:
                 raise BusinessConflict("Ключ команды уже использован с другим содержимым.")
             return old.response_body, old.response_status
