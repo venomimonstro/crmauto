@@ -79,7 +79,7 @@ function Auth({ afterLogin }: { afterLogin: () => Promise<void> }) {
           {method:"POST",data:{email}});
         setNotice(data.message_ru);
       }else if(mode==="verify"){
-        await api("auth/email/verify",{method:"POST",data:{uid,token}});
+        await api("auth/email/verify",{method:"POST",data:{uid,token,password}});
         setNotice("Адрес подтверждён. Можно войти.");
         window.history.replaceState({}, "", window.location.pathname);
         setMode("login");
@@ -114,10 +114,10 @@ function Auth({ afterLogin }: { afterLogin: () => Promise<void> }) {
           <input type="email" autoComplete="email" required value={email}
             onChange={e=>setEmail(e.target.value)} placeholder="name@company.ru"/>
         </label>}
-        {["login","signup","reset"].includes(mode)&&<label>
-          {mode==="reset"?"Новый пароль":"Пароль"}
+        {["login","signup","reset","verify"].includes(mode)&&<label>
+          {mode==="reset"?"Новый пароль":mode==="verify"?"Пароль, заданный при регистрации":"Пароль"}
           <input type="password" minLength={12}
-            autoComplete={mode==="login"?"current-password":"new-password"}
+            autoComplete={["login","verify"].includes(mode)?"current-password":"new-password"}
             required value={password} onChange={e=>setPassword(e.target.value)}
             placeholder="Не менее 12 символов"/>
         </label>}
