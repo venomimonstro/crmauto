@@ -22,7 +22,7 @@ python3 -m compileall -q backend
   python3 manage.py migrate --plan
   python3 manage.py test --noinput core.test_owner_journey billing.tests portal.tests \
     finance.tests workorders.tests inventory.tests procurement.tests \
-    dismantling.tests workforce.tests scheduling.tests identity.tests crm.tests
+    dismantling.tests workforce.tests scheduling.tests identity.tests identity.test_email_auth crm.tests
 )
 if [[ ! -f frontend/package-lock.json ]]; then
   echo "BLOCKER: reproducible frontend/package-lock.json is required for npm ci." >&2
