@@ -55,3 +55,28 @@ class StockContracts(TestCase):
         row=Stock.objects.get(pk=stock_id)
         self.assertEqual((row.quantity,row.reserved),(1,0))
         self.assertEqual(Movement.objects.filter(kind="issue").count(),1)
+
+    def test_draft_order_cannot_reserve_parts_before_approval(self):
+        stock_id=self.setup_stock()
+        order=self.setup_order()
+        order.status="draft"
+        order.save(update_fields=["status"])
+        result=self.post("/api/v1/reservations",{
+            "stock_id":stock_id,"order_id":str(order.id),"quantity":1})
+        self.assertEqual(result.status_code,409,result.content)
+        self.assertEqual(Stock.objects.get(pk=stock_id).reserved,0)
+
+    def test_ready_order_cannot_issue_parts_after_quality_check(self):
+        stock_id=self.setup_stock()
+        order=self.setup_order()
+        reservation=self.post("/api/v1/reservations",{
+            "stock_id":stock_id,"order_id":str(order.id),"quantity":1})
+        self.assertEqual(reservation.status_code,201,reservation.content)
+        order.status="ready"
+        order.save(update_fields=["status"])
+        action=self.post(f'/api/v1/reservations/{reservation.json()["id"]}/issue',{})
+        self.assertEqual(action.status_code,409,action.content)
+        row=Stock.objects.get(pk=stock_id)
+        self.assertEqual((row.quantity,row.reserved),(2,1))
+        release=self.post(f'/api/v1/reservations/{reservation.json()["id"]}/release',{})
+        self.assertEqual(release.status_code,200,release.content)
