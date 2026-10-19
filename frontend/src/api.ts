@@ -41,6 +41,10 @@ export async function api<T>(
   } catch {
     throw new ApiError(0, "Не удалось подключиться к серверу. Проверьте соединение и повторите.");
   }
+  // Django rotates CSRF secrets on login/logout. Force a fresh token for
+  // the next mutation; otherwise the first action after login can get 403.
+  if (response.ok && method === "POST" &&
+      (path === "auth/login" || path === "auth/logout")) csrfToken = "";
   if (response.status === 204) return undefined as T;
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) {
