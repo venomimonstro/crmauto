@@ -6,7 +6,7 @@ from core.commands import execute_command,BusinessConflict
 from identity.models import Membership,AuditEvent,MemberBranch
 from identity.scope import TenantAPIView,require_roles
 from scheduling.views import valid_branch
-from crm.models import Customer,Vehicle
+from crm.models import Customer,Vehicle,Ownership
 from .models import Shift,TireSet
 
 ADMIN=(Membership.Roles.OWNER,Membership.Roles.MANAGER)
@@ -52,6 +52,9 @@ class Tires(TenantAPIView):
             vehicle=None
             if d.get('vehicle_id'):
                 vehicle=get_object_or_404(Vehicle,pk=d['vehicle_id'],organization=self.scope.organization)
+                if not Ownership.objects.filter(organization=self.scope.organization,
+                    vehicle=vehicle,customer=customer,ended_on__isnull=True).exists():
+                    raise BusinessConflict("Автомобиль не принадлежит выбранному клиенту. Проверьте карточку автомобиля.")
             if TireSet.objects.filter(organization=self.scope.organization,code=d['code']).exists():
                 raise BusinessConflict('Код комплекта уже занят.')
             obj=TireSet.objects.create(organization=self.scope.organization,branch=branch,
