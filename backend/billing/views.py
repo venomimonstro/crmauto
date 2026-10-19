@@ -1,12 +1,15 @@
 from django.utils import timezone
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
 from identity.scope import TenantAPIView
 from identity.models import Membership
 from rest_framework.exceptions import PermissionDenied
 from .models import Plan, Subscription
 from .access import may_write
 
-class Plans(TenantAPIView):
+class Plans(APIView):
+    permission_classes = [AllowAny]
     def get(self, request):
         items=Plan.objects.filter(active=True).order_by('price_minor')
         return Response([{'code':p.code,'name':p.name,'price_minor':p.price_minor,
