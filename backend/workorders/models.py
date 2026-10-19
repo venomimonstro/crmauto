@@ -96,3 +96,22 @@ class AdditionalWork(models.Model):
     approval_reference=models.CharField(max_length=250,blank=True)
     created_at=models.DateTimeField(default=timezone.now)
     decided_at=models.DateTimeField(null=True,blank=True)
+
+class RepairTask(models.Model):
+    """Single assigned mechanic task; time is recorded by server, not caller."""
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    order=models.ForeignKey(WorkOrder,on_delete=models.PROTECT,related_name="repair_tasks")
+    mechanic=models.ForeignKey("identity.Membership",on_delete=models.PROTECT)
+    title=models.CharField(max_length=200)
+    state=models.CharField(max_length=12,choices=[("assigned","Назначено"),("running","В работе"),
+        ("done","Выполнено"),("cancelled","Отменено")],default="assigned")
+    started_at=models.DateTimeField(null=True,blank=True)
+    completed_at=models.DateTimeField(null=True,blank=True)
+    created_at=models.DateTimeField(default=timezone.now)
+    class Meta:
+        constraints=[
+            models.UniqueConstraint(fields=["mechanic"],condition=Q(state="running"),
+                name="wo_one_running_task_per_mechanic"),
+            models.CheckConstraint(condition=Q(completed_at__isnull=True)|Q(started_at__isnull=False),
+                name="wo_task_end_requires_start"),
+        ]
