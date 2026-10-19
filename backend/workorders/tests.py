@@ -72,9 +72,9 @@ class WorkOrderContracts(TestCase):
         self.line(order)
         self.post(f"/api/v1/workorders/{order}/actions/submit")
         self.assertEqual(self.post(f"/api/v1/workorders/{order}/actions/reject").status_code,200)
-        self.assertEqual(self.post(f"/api/v1/workorders/{order}/actions/revise").status_code,409)
-        # Explicitly creating new revision after a rejection is part of draft edits.
+        self.assertEqual(self.post(f"/api/v1/workorders/{order}/actions/revise").status_code,200)
         self.assertEqual(WorkOrder.objects.get(id=order).status,"draft")
+        self.assertEqual(Estimate.objects.filter(order_id=order).count(),2)
 
     def test_cross_company_visit_hidden(self):
         other_customer=Customer.objects.create(organization=self.other,name="Чужой")
