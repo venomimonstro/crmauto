@@ -22,6 +22,10 @@ class Command(BaseCommand):
         # S12 is still incomplete: do not allow sign-off by merely configuring plans.
         if not settings.BILLING_ENFORCE_WRITES:
             failures.append("BILLING_ENFORCE_WRITES=1 is required for commercial release")
+        if not settings.ENABLE_EMAIL_ONBOARDING:
+            failures.append("Verified signup/recovery must be configured and SMTP-tested")
+        if not settings.PUBLIC_WEB_ORIGIN.startswith("https://"):
+            failures.append("PUBLIC_WEB_ORIGIN must be a trusted HTTPS origin")
         failures.append("Verified PSP/fiscal integration and restore drill not completed")
         try:
             with connection.cursor() as cursor:
