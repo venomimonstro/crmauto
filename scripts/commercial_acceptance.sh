@@ -14,19 +14,20 @@ if [[ "${BILLING_ENFORCE_WRITES:-0}" != "1" ]]; then
   echo "BLOCKER: BILLING_ENFORCE_WRITES must be enabled." >&2
   exit 5
 fi
+if [[ ! -f frontend/package-lock.json ]]; then
+  echo "BLOCKER: reproducible frontend/package-lock.json is required for npm ci." >&2
+  exit 6
+fi
 python3 -m compileall -q backend
 (
   cd backend
   python3 manage.py check --deploy --fail-level ERROR
   python3 manage.py makemigrations --check --dry-run
-  python3 manage.py migrate --plan
+  # Database is explicitly disposable staging; validate actual schema evolution.
+  python3 manage.py migrate --noinput
   # Discover every test module, including operational regression tests added later.
   python3 manage.py test --noinput --verbosity 2
 )
-if [[ ! -f frontend/package-lock.json ]]; then
-  echo "BLOCKER: reproducible frontend/package-lock.json is required for npm ci." >&2
-  exit 6
-fi
 (
   cd frontend
   npm ci --no-audit --no-fund
