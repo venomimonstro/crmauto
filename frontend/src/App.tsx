@@ -11,6 +11,7 @@ import Reports from "./Reports";
 import Dismantling from "./Dismantling";
 import CashDesk from "./CashDesk";
 import SubscriptionPage from "./SubscriptionPage";
+import { Staff, AcceptInvitation } from "./Staff";
 import { api, ApiError, type Customer, type Organization, type SessionUser, type Vehicle } from "./api";
 
 type Area = "dashboard" | "customers" | "vehicles" | "orders" | "lifts" | "tyres" |
@@ -25,7 +26,7 @@ const navigation: { key: Area; title: string; icon: typeof Users; ready: boolean
   { key: "inventory", title: "Запчасти и склад", icon: Package, ready: true },
   { key: "donors", title: "Авторазбор", icon: Wrench, ready: true },
   { key: "suppliers", title: "Закупки и продажи", icon: ShoppingCart, ready: true },
-  { key: "personnel", title: "Персонал", icon: Users, ready: false },
+  { key: "personnel", title: "Персонал", icon: Users, ready: true },
   { key: "cash", title: "Касса", icon: CreditCard, ready: true },
   { key: "reports", title: "Отчёты", icon: BarChart3, ready: true },
   { key: "settings", title: "Настройки", icon: Settings, ready: true },
@@ -264,6 +265,7 @@ function ComingSoon({ name }: { name:string }) {
 export default function App(){
   const [session,setSession]=useState<SessionUser|null>(null);
   const [loading,setLoading]=useState(true);
+  const [pendingInvite,setPendingInvite]=useState(()=>new URLSearchParams(window.location.search).get("staff_invite")??"");
   const [organizationId,setOrganizationId]=useState("");
   const [area,setArea]=useState<Area>("dashboard");
   const [customers,setCustomers]=useState<Customer[]>([]);
@@ -303,6 +305,10 @@ export default function App(){
   function navigate(next:Area){setArea(next);setMenuOpen(false);}
   if(loading)return <div className="loading"><Activity size={24}/> Загрузка CRM…</div>;
   if(!session)return <Auth afterLogin={loadSession}/>;
+  if(pendingInvite)return <AcceptInvitation token={pendingInvite}
+    onDecline={()=>{window.history.replaceState({},"",window.location.pathname);setPendingInvite("");}}
+    onAccepted={async()=>{window.history.replaceState({},"",window.location.pathname);
+      setPendingInvite("");await loadSession();}}/>;
   if(!activeOrg)return <CreateOrganization onCreated={loadSession}/>;
   const selected=navigation.find(n=>n.key===area);
   return <div className="app-shell">
@@ -333,6 +339,7 @@ export default function App(){
          area==="customers"?<Customers organization={activeOrg.id} items={customers} refresh={refreshData} canEdit={["owner","manager","adviser"].includes(activeOrg.role)}/>:
          area==="vehicles"?<Vehicles organization={activeOrg.id} vehicles={vehicles} customers={customers} refresh={refreshData} canEdit={["owner","manager","adviser"].includes(activeOrg.role)}/>:
          area==="settings"?<SubscriptionPage organization={activeOrg.id} role={activeOrg.role}/>:
+         area==="personnel"?<Staff organization={activeOrg.id} role={activeOrg.role}/>:
          area==="cash"&&["owner","manager","cashier","viewer"].includes(activeOrg.role)?<CashDesk organization={activeOrg.id} role={activeOrg.role}/>:
          area==="donors"?<Dismantling organization={activeOrg.id} role={activeOrg.role}/>:
          area==="reports"&&["owner","manager","viewer"].includes(activeOrg.role)?<Reports organization={activeOrg.id}/>:
