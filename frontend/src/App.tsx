@@ -286,6 +286,8 @@ export default function App(){
   const [organizationId,setOrganizationId]=useState("");
   const [area,setArea]=useState<Area>("dashboard");
   const [customers,setCustomers]=useState<Customer[]>([]);
+  const [dataOrganization,setDataOrganization]=useState("");
+  const dataRequest=useRef(0);
   const [vehicles,setVehicles]=useState<Vehicle[]>([]);
   const [,setDataLoading]=useState(false);
   const [error,setError]=useState("");const [menuOpen,setMenuOpen]=useState(false);
@@ -301,22 +303,26 @@ export default function App(){
   },[]);
   useEffect(()=>{void loadSession();},[loadSession]);
   const refreshData=useCallback(async()=>{
+    const ticket=++dataRequest.current;
+    setCustomers([]);setVehicles([]);setDataOrganization("");
     if(!activeOrg)return;
+    const orgId=activeOrg.id, role=activeOrg.role;
     setDataLoading(true);setError("");
     try{
-      const role=activeOrg.role;
       const canCustomers=["owner","manager","adviser","viewer"].includes(role);
       const canVehicles=canCustomers||["mechanic","stock"].includes(role);
       const [c,v]=await Promise.all([
-        canCustomers ? api<Customer[]>("customers",{organization:activeOrg.id}) : Promise.resolve([] as Customer[]),
-        canVehicles ? api<Vehicle[]>("vehicles",{organization:activeOrg.id}) : Promise.resolve([] as Vehicle[]),
+        canCustomers ? api<Customer[]>("customers",{organization:orgId}) : Promise.resolve([] as Customer[]),
+        canVehicles ? api<Vehicle[]>("vehicles",{organization:orgId}) : Promise.resolve([] as Vehicle[]),
       ]);
-      setCustomers(c);setVehicles(v);
-    }catch(err){setError(errorText(err));}
-    finally{setDataLoading(false);}
-  },[activeOrg?.id]);
+      if(ticket!==dataRequest.current)return;
+      setCustomers(c);setVehicles(v);setDataOrganization(orgId);
+    }catch(err){if(ticket===dataRequest.current)setError(errorText(err));}
+    finally{if(ticket===dataRequest.current)setDataLoading(false);}
+  },[activeOrg?.id,activeOrg?.role]);
   useEffect(()=>{void refreshData();},[refreshData]);
   async function logOut(){try{await api("auth/logout",{method:"POST"});}finally{
+    ++dataRequest.current;setDataOrganization("");
     setSession(null);setCustomers([]);setVehicles([]);setArea("dashboard");
   }}
   function navigate(next:Area){
@@ -334,13 +340,15 @@ export default function App(){
       setPendingInvite("");await loadSession();}}/>;
   if(!activeOrg)return <CreateOrganization onCreated={loadSession}/>;
   const selected=navigation.find(n=>n.key===area);
+  const visibleCustomers=dataOrganization===activeOrg.id?customers:[];
+  const visibleVehicles=dataOrganization===activeOrg.id?vehicles:[];
   return <div className="app-shell">
     {menuOpen&&<button className="mobile-scrim" onClick={()=>setMenuOpen(false)} aria-label="Закрыть меню"/>}
     <aside className={"sidebar "+(menuOpen?"open":"")}>
       <div className="brand"><span className="brand-mark"><Wrench size={20}/></span><span>CRM <strong>Автосервис</strong></span></div>
       <div className="workspace-switch"><span className="avatar-org">{activeOrg.name.slice(0,1).toUpperCase()}</span>
         <div className="workspace-name"><strong>{activeOrg.name}</strong><small>Роль: {activeOrg.role}</small></div><ChevronDown size={15}/></div>
-      {organizations.length>1&&<label className="org-select-label">Организация<select value={activeOrg.id} onChange={e=>setOrganizationId(e.target.value)}>
+      {organizations.length>1&&<label className="org-select-label">Организация<select value={activeOrg.id} onChange={e=>{++dataRequest.current;setDataOrganization("");setCustomers([]);setVehicles([]);setOrganizationId(e.target.value);}}>
         {organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}
       <div className="menu-heading">РАБОЧЕЕ ПРОСТРАНСТВО</div>
       <nav aria-label="Разделы CRM">{navigation.filter(item=>allowedArea(item.key,activeOrg.role)).map(item=>{
@@ -363,17 +371,17 @@ export default function App(){
             ?<OwnerDashboard organization={activeOrg.id} onNavigate={navigate}/>
             :<Dashboard role={activeOrg.role} navigate={navigate}/>
          ):
-         area==="customers"?<Customers organization={activeOrg.id} items={customers} refresh={refreshData} canEdit={["owner","manager","adviser"].includes(activeOrg.role)}/>:
-         area==="vehicles"?<Vehicles organization={activeOrg.id} vehicles={vehicles} customers={customers} refresh={refreshData} canEdit={["owner","manager","adviser"].includes(activeOrg.role)}/>:
+         area==="customers"?<Customers organization={activeOrg.id} items={visibleCustomers} refresh={refreshData} canEdit={["owner","manager","adviser"].includes(activeOrg.role)}/>:
+         area==="vehicles"?<Vehicles organization={activeOrg.id} vehicles={visibleVehicles} customers={visibleCustomers} refresh={refreshData} canEdit={["owner","manager","adviser"].includes(activeOrg.role)}/>:
          area==="settings"?<SubscriptionPage organization={activeOrg.id} role={activeOrg.role}/>:
          area==="personnel"?<Staff organization={activeOrg.id} role={activeOrg.role}/>:
-         area==="tyres"?<TireStorage organization={activeOrg.id} role={activeOrg.role} customers={customers} vehicles={vehicles}/>:
+         area==="tyres"?<TireStorage organization={activeOrg.id} role={activeOrg.role} customers={visibleCustomers} vehicles={visibleVehicles}/>:
          area==="cash"&&["owner","manager","cashier","viewer"].includes(activeOrg.role)?<CashDesk organization={activeOrg.id} role={activeOrg.role}/>:
          area==="donors"?<Dismantling organization={activeOrg.id} role={activeOrg.role}/>:
          area==="reports"&&["owner","manager","viewer"].includes(activeOrg.role)?<Reports organization={activeOrg.id}/>:
          (area==="inventory"||area==="suppliers")?<Inventory organization={activeOrg.id} role={activeOrg.role}/>:
-         area==="orders"?<WorkOrders organization={activeOrg.id} role={activeOrg.role} customers={customers} vehicles={vehicles}/>:
-         area==="lifts"?<Schedule organization={activeOrg.id} role={activeOrg.role} customers={customers} vehicles={vehicles}/>:
+         area==="orders"?<WorkOrders organization={activeOrg.id} role={activeOrg.role} customers={visibleCustomers} vehicles={visibleVehicles}/>:
+         area==="lifts"?<Schedule organization={activeOrg.id} role={activeOrg.role} customers={visibleCustomers} vehicles={visibleVehicles}/>:
          <ComingSoon name={selected?.title??"Раздел"}/>}
       </main>
     </div>
