@@ -1,5 +1,6 @@
 """Tenant-owned business details for workshop paperwork; not proof of registration."""
 from rest_framework import serializers
+import re
 from rest_framework.response import Response
 from identity.models import Membership, OrganizationLegalProfile
 from identity.scope import TenantAPIView,require_roles
@@ -16,10 +17,20 @@ class ProfileData(serializers.ModelSerializer):
                 "account_number","correspondent_account","tax_label","version")
         read_only_fields=("version",)
     def validate(self,data):
-        if data.get("entity_kind",getattr(self.instance,"entity_kind",""))=="self_employed":
-            if data.get("kpp",getattr(self.instance,"kpp","")):
-                raise serializers.ValidationError({"kpp":"Самозанятому не нужен КПП."})
+        kind=data.get("entity_kind",getattr(self.instance,"entity_kind","company"))
+        for field, lengths in (("inn",(10,12)),("kpp",(9,)),("ogrn",(13,15)),
+                                ("bik",(9,)),("account_number",(20,)),
+                                ("correspondent_account",(20,))):
+            raw=data.get(field,getattr(self.instance,field,""))
+            if raw and (not re.fullmatch(r"[0-9]+",raw) or len(raw) not in lengths):
+                raise serializers.ValidationError({field:"Проверьте количество цифр и формат реквизита."})
+        inn=data.get("inn",getattr(self.instance,"inn",""))
+        if inn and ((kind=="company" and len(inn)!=10) or (kind in ("individual","self_employed") and len(inn)!=12)):
+            raise serializers.ValidationError({"inn":"Длина ИНН не соответствует типу исполнителя."})
+        if kind=="self_employed" and data.get("kpp",getattr(self.instance,"kpp","")):
+            raise serializers.ValidationError({"kpp":"Самозанятому не нужен КПП."})
         return data
+
 
 class LegalProfile(TenantAPIView):
     def get(self,request):
