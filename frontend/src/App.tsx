@@ -287,7 +287,7 @@ export default function App(){
   const [area,setArea]=useState<Area>("dashboard");
   const [customers,setCustomers]=useState<Customer[]>([]);
   const [vehicles,setVehicles]=useState<Vehicle[]>([]);
-  const [dataLoading,setDataLoading]=useState(false);
+  const [,setDataLoading]=useState(false);
   const [error,setError]=useState("");const [menuOpen,setMenuOpen]=useState(false);
   const organizations=session?.organizations??[];
   const activeOrg:Organization|undefined=useMemo(()=>organizations.find(o=>o.id===organizationId)??organizations[0],[organizations,organizationId]);
@@ -348,7 +348,7 @@ export default function App(){
           className={"nav-link "+(area===item.key?"active":"")} onClick={()=>navigate(item.key)}>
           <Icon size={18}/><span>{item.title}</span>{!item.ready&&<span className="lock-mark" title="В разработке">·</span>}</button>;
       })}</nav>
-      <div className="sidebar-bottom"><button className="nav-link" onClick={()=>navigate("settings")}><CircleHelp size={18}/> Справка</button>
+      <div className="sidebar-bottom"><button className="nav-link" onClick={()=>navigate("dashboard")}><CircleHelp size={18}/> Рабочий стол</button>
         <button className="nav-link" onClick={()=>void logOut()}><LogOut size={18}/> Выйти</button></div>
     </aside>
     <div className="main-column">
