@@ -9,7 +9,7 @@ type Daily={
  active_parts_reservations:number;purchases_waiting_receiving:number;
  cash_today_minor:number;outstanding_minor:number;warnings:string[];
 };
-const rub=(minor:number)=>new Intl.NumberFormat("ru-RU",{style:"currency",currency:"RUB",maximumFractionDigits:0}).format(minor/100);
+const rub=(minor:number)=>new Intl.NumberFormat("ru-RU",{style:"currency",currency:"RUB"}).format(minor/100);
 const nameOf=(e:unknown)=>e instanceof Error?e.message:"Ошибка загрузки данных.";
 
 export default function OwnerDashboard({organization,onNavigate}:{
