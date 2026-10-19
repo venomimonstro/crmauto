@@ -86,6 +86,8 @@ class OrganizationsView(APIView):
 
     @transaction.atomic
     def post(self, request):
+        # Concurrent signup tabs cannot mint two separate trial organisations.
+        User.objects.select_for_update().get(pk=request.user.pk)
         if Membership.objects.filter(user=request.user, role=Membership.Roles.OWNER).exists():
             raise ValidationError({"organization":"Повторное создание организаций пока ограничено. Используйте филиалы или обратитесь к администратору SaaS."})
         from billing.models import Plan, Subscription
@@ -119,6 +121,8 @@ class BranchesView(TenantAPIView):
         require_roles(self.scope, Membership.Roles.OWNER, Membership.Roles.MANAGER)
         from django.conf import settings
         if settings.BILLING_ENFORCE_WRITES:
+            # Serialise branch count checks across simultaneous managers.
+            Organization.objects.select_for_update().get(pk=self.scope.organization_id)
             from billing.models import Subscription
             from core.commands import BusinessConflict
             sub = Subscription.objects.select_related("plan").get(organization=self.scope.organization)
